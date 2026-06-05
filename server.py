@@ -37,6 +37,7 @@ from telegram_service import (
     save_json,
     send_reminder_to_user,
     send_reminders,
+    send_task_reminder,
     setup_webhook,
     test_bot,
     webhook_base_url,
@@ -379,6 +380,15 @@ def tg_send_user():
         alerts_only=body.get("alerts_only", False),
         dry_run=body.get("dry_run", False),
     ))
+
+
+@app.route("/api/telegram/notify-task", methods=["POST"])
+def tg_notify_task():
+    body = request.get_json(silent=True) or {}
+    task_id = body.get("task_id") or body.get("id")
+    if task_id in (None, ""):
+        return jsonify({"ok": False, "error": "Thiếu mã việc"}), 400
+    return jsonify(send_task_reminder(task_id, dry_run=body.get("dry_run", False)))
 
 
 @app.route("/api/telegram/preview", methods=["GET"])

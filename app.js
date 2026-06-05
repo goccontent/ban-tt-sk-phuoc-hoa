@@ -209,7 +209,6 @@ function bindEvents() {
   $('#btn-cancel-member')?.addEventListener('click', closeMemberModal);
   $('#member-form')?.addEventListener('submit', saveMember);
 
-  $('#btn-send-member-reminder')?.addEventListener('click', sendMemberReminder);
   $('#btn-simulate-bot').addEventListener('click', () => previewReminders());
   $('#btn-tg-save')?.addEventListener('click', saveTelegramConfig);
   $('#btn-tg-save-public')?.addEventListener('click', saveTelegramConfigPublic);
@@ -443,6 +442,7 @@ function renderTaskList() {
       const action = btn.dataset.action;
       if (action === 'next') advanceStatus(id);
       else if (action === 'delete') deleteTask(id);
+      else if (action === 'remind') remindTask(id);
     });
   });
 }
@@ -457,6 +457,8 @@ function taskListItemHTML(t, me, mineMode) {
   const ownerLine = mineMode
     ? (isOwner ? '<strong>Chủ trì (bạn)</strong>' : `Chủ trì: ${t.owner}`)
     : `Chủ trì: <strong>${t.owner}</strong>`;
+  const rank = urgencyRank(t);
+  const urgent = rank === 0 || rank === 1; // quá hạn hoặc gần đến hạn
   return `
     <div class="my-task-item ${isOwner && mineMode ? 'chinh' : ''} ${dlClass}" data-id="${t.id}">
       <div class="task-main">
@@ -472,6 +474,7 @@ function taskListItemHTML(t, me, mineMode) {
       <div class="task-side">
         <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status]}</span>
         <div class="task-actions">
+          ${urgent ? `<button class="btn btn-sm btn-warn" data-action="remind" title="Nhắc Chủ trì + Phối hợp qua Telegram">📱 Nhắc</button>` : ''}
           ${nextStatus ? `<button class="btn btn-sm btn-secondary" data-action="next">→ ${STATUS_LABELS[nextStatus]}</button>` : ''}
           <button class="btn btn-sm btn-ghost" data-action="delete" title="Chuyển vào thùng rác">🗑</button>
         </div>
@@ -907,25 +910,36 @@ async function unlockTelegramAdmin() {
   }
 }
 
-async function sendMemberReminder() {
+// Admin nhắc ĐÚNG một việc → gửi Telegram tới Chủ trì + Phối hợp của việc đó
+async function remindTask(id) {
   if (!isAdminActive()) return;
-  const name = $('#my-name').value;
-  if (!name || !useServer) return;
-  if (!confirm(`Gửi danh sách việc đang mở qua Telegram cho ${name}?`)) return;
-  const status = $('#mine-reminder-status') || $('#tg-status');
-  status.innerHTML = '<span class="hint">Đang gửi...</span>';
+  if (!useServer) { alert('Cần chạy server để gửi nhắc Telegram.'); return; }
+  const t = tasks.find((x) => x.id === id);
+  if (!t) return;
+  const who = [t.owner, ...(t.helpers || [])].filter(Boolean).join(', ');
+  if (!confirm(`Gửi nhắc việc này qua Telegram cho: ${who || '(chưa có người)'}?`)) return;
+  const status = $('#mine-reminder-status');
+  if (status) status.innerHTML = '<span class="hint">Đang gửi nhắc...</span>';
   try {
-    const res = await apiFetch('/api/telegram/send-user', {
+    const res = await apiFetch('/api/telegram/notify-task', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ task_id: id }),
     });
     if (res.ok) {
-      status.innerHTML = `<span class="ok">✓ Đã gửi ${res.tasks} việc cho ${name} qua Telegram</span>`;
-    } else {
+      const parts = [];
+      if (res.sent?.length) parts.push(`✓ Đã nhắc: ${res.sent.join(', ')}`);
+      if (res.unregistered?.length) parts.push(`⚠ Chưa đăng ký bot: ${res.unregistered.join(', ')}`);
+      if (res.failed?.length) parts.push(`✗ Gửi lỗi: ${res.failed.join(', ')}`);
+      const msg = parts.join(' · ');
+      if (status) status.innerHTML = `<span class="ok">${msg}</span>`; else alert(msg);
+    } else if (status) {
       status.innerHTML = `<span class="err">✗ ${res.error}</span>`;
+    } else {
+      alert('✗ ' + res.error);
     }
   } catch (e) {
-    status.innerHTML = `<span class="err">Lỗi: ${e.message}</span>`;
+    if (status) status.innerHTML = `<span class="err">Lỗi: ${e.message}</span>`;
+    else alert('Lỗi: ' + e.message);
   }
 }
 

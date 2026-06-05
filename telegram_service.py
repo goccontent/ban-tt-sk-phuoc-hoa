@@ -233,6 +233,82 @@ def send_reminder_to_user(name, alerts_only=False, dry_run=False):
     }
 
 
+def build_single_task_message(name, task, role="", now=None):
+    """Tin nhắc cho ĐÚNG một việc gửi tới một người."""
+    if now is None:
+        now = datetime.now()
+    urg = urgency_label(task["deadline"], now)
+    dl = format_deadline_vi(task["deadline"])
+    st = STATUS_LABELS.get(task.get("status", "chua-lam"), "")
+    prefix = f"{urg} " if urg else "📌 "
+    role_txt = f" — {role}" if role else ""
+    ctx = " · ".join(x for x in [task.get("phase"), task.get("ban")] if x)
+    lines = [f"Chào <b>{name}</b>! Nhắc việc{role_txt}:", ""]
+    lines.append(f"{prefix}<b>{dl}</b> [{st}]")
+    if ctx:
+        lines.append(f"<i>{ctx}</i>")
+    lines.append(f"→ {task['desc']}")
+    lines.append("")
+    lines.append("<i>Ban TT-SK · GX Phước Hòa</i>")
+    return "\n".join(lines)
+
+
+def send_task_reminder(task_id, dry_run=False):
+    """Nhắc MỘT việc cụ thể tới Chủ trì + Phối hợp đã đăng ký Telegram."""
+    cfg = load_config()
+    token = cfg.get("bot_token")
+    if not token:
+        return {"ok": False, "error": "Chưa cấu hình bot_token"}
+
+    tasks = load_tasks()
+    task = next((t for t in tasks if str(t.get("id")) == str(task_id)), None)
+    if not task:
+        return {"ok": False, "error": "Không tìm thấy việc"}
+
+    users = load_users()
+    owner = task.get("owner")
+    helpers = task.get("helpers") or []
+
+    # Chủ trì trước, rồi phối hợp; bỏ tên trùng/rỗng
+    recipients, seen = [], set()
+    for nm, role in [(owner, "CHỦ TRÌ")] + [(h, "PHỐI HỢP") for h in helpers]:
+        if not nm or nm in seen:
+            continue
+        seen.add(nm)
+        recipients.append((nm, role))
+
+    if not recipients:
+        return {"ok": False, "error": "Việc chưa có người phụ trách"}
+
+    sent, unregistered, failed, previews = [], [], [], []
+    for nm, role in recipients:
+        chat_id = users.get(nm)
+        if not chat_id:
+            unregistered.append(nm)
+            continue
+        msg = build_single_task_message(nm, task, role)
+        if dry_run:
+            previews.append({"name": nm, "chat_id": chat_id, "preview": msg})
+            continue
+        res = send_message(token, chat_id, msg)
+        if res.get("ok"):
+            sent.append(nm)
+        else:
+            failed.append(nm)
+
+    if dry_run:
+        return {"ok": True, "dry_run": True, "previews": previews,
+                "unregistered": unregistered}
+
+    if not sent:
+        if unregistered:
+            return {"ok": False, "error": "Chưa ai đăng ký bot. Bảo họ nhắn @tnttph_bot: /start "
+                    + ", /start ".join(unregistered), "unregistered": unregistered}
+        return {"ok": False, "error": "Gửi thất bại", "failed": failed}
+
+    return {"ok": True, "sent": sent, "unregistered": unregistered, "failed": failed}
+
+
 def send_reminders(token=None, dry_run=False):
     cfg = load_config()
     token = token or cfg.get("bot_token")

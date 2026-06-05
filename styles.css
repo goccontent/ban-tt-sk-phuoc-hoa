@@ -240,6 +240,8 @@ select, input, textarea {
 .btn-secondary:hover { background: var(--accent); color: white; }
 .btn-ghost { background: transparent; color: var(--text-muted); }
 .btn-ghost:hover { background: var(--bg); }
+.btn-warn { background: #b91c1c; color: white; }
+.btn-warn:hover { background: #991b1b; }
 .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
 
 .task-desc { font-size: 0.88rem; margin-bottom: 0.5rem; line-height: 1.4; }
@@ -388,7 +390,6 @@ select, input, textarea {
 
 /* Quyền: ẩn mọi nút quản trị khi không phải admin (Trọng) */
 body.not-admin #btn-add-task,
-body.not-admin #btn-send-member-reminder,
 body.not-admin #btn-add-member,
 body.not-admin #btn-import-excel,
 body.not-admin .tabs .tab[data-tab="bot"],
