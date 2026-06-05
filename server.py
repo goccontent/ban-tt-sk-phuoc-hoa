@@ -20,6 +20,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
+from backup_store import create_backup, latest_backup_path, list_backups, restore_backup
 from events_store import enrich_event, load_events, make_event_id, merge_events, save_events
 from import_excel import parse_excel, to_event_records
 from telegram_service import (
@@ -73,8 +74,13 @@ def secrets_locked():
 _initialized = False
 
 
-def save_tasks(tasks):
+def save_tasks(tasks, backup=True):
     save_json(TASKS_FILE, tasks)
+    if backup:
+        try:
+            create_backup(label="tasks")
+        except OSError as exc:
+            print(f"Backup warning: {exc}")
 
 
 def init_app():
@@ -136,6 +142,10 @@ def put_events():
     if not isinstance(data, list):
         return jsonify({"ok": False, "error": "Expected array"}), 400
     save_events([enrich_event(e) for e in data])
+    try:
+        create_backup(label="events")
+    except OSError:
+        pass
     return jsonify({"ok": True, "count": len(data)})
 
 
@@ -156,6 +166,10 @@ def create_event():
     })
     existing.append(ev)
     save_events(existing)
+    try:
+        create_backup(label="event-new")
+    except OSError:
+        pass
     return jsonify({"ok": True, "event": ev, "events": existing})
 
 
@@ -317,6 +331,47 @@ def tg_webhook(secret):
     if update:
         handle_update(update)
     return jsonify({"ok": True})
+
+
+@app.route("/api/backup/latest", methods=["GET"])
+def backup_latest():
+    path = latest_backup_path()
+    if not path:
+        create_backup(label="on-demand")
+        path = latest_backup_path()
+    if not path:
+        return jsonify({"ok": False, "error": "Chưa có backup"}), 404
+    return send_from_directory(path.parent, path.name, as_attachment=True)
+
+
+@app.route("/api/backup/list", methods=["GET"])
+def backup_list():
+    return jsonify({"ok": True, "backups": list_backups()})
+
+
+@app.route("/api/backup/create", methods=["POST"])
+def backup_create():
+    return jsonify(create_backup(label="manual"))
+
+
+@app.route("/api/backup/restore", methods=["POST"])
+def backup_restore():
+    if not is_admin_request():
+        return jsonify({"ok": False, "error": "Cần mã quản trị"}), 403
+    body = request.get_json(silent=True) or {}
+    filename = body.get("file") or ""
+    if not filename:
+        return jsonify({"ok": False, "error": "Thiếu tên file"}), 400
+    return jsonify(restore_backup(filename))
+
+
+@app.route("/api/cron/backup", methods=["GET", "POST"])
+def cron_backup():
+    key = request.args.get("key") or request.headers.get("X-Cron-Key")
+    expected = os.getenv("CRON_SECRET")
+    if not expected or key != expected:
+        return jsonify({"ok": False, "error": "Unauthorized"}), 403
+    return jsonify(create_backup(label="cron"))
 
 
 @app.route("/api/cron/remind", methods=["GET", "POST"])

@@ -49,7 +49,34 @@ body {
 
 .header h1 { font-size: 1.25rem; font-weight: 700; }
 .subtitle { font-size: 0.85rem; opacity: 0.85; }
-.motto { font-style: italic; font-size: 0.9rem; opacity: 0.9; }
+.motto { font-style: italic; font-size: 0.9rem; opacity: 0.9; width: 100%; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.header-user select {
+  min-width: 8rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+
+.header-user select option { color: var(--text); }
 
 .tabs {
   display: flex;
@@ -90,7 +117,105 @@ body {
   gap: 0.75rem;
 }
 
-.toolbar-left { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.toolbar-left { display: flex; gap: 0.75rem; flex-wrap: wrap; flex: 1; min-width: 0; }
+.toolbar-right { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+
+.view-toggle {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.2rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.view-btn {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.view-btn.active { background: var(--primary); color: white; }
+
+.search-input {
+  min-width: 12rem;
+  flex: 1;
+  max-width: 280px;
+}
+
+.search-input-sm { min-width: 9rem; max-width: 200px; flex: 0 1 auto; }
+
+.inline-status { margin-bottom: 0.5rem; min-height: 0; }
+.inline-status .ok { color: #059669; font-size: 0.9rem; }
+.inline-status .err { color: #dc2626; font-size: 0.9rem; }
+.inline-status .warn { color: #d97706; font-size: 0.9rem; }
+
+.trash-panel {
+  margin-top: 1.5rem;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow);
+}
+
+.trash-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.badge-count {
+  background: var(--bg);
+  padding: 0.1rem 0.45rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+.trash-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.trash-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.trash-item:last-child { border-bottom: none; }
+.trash-item-info { font-size: 0.85rem; flex: 1; min-width: 0; }
+.trash-item-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+.bot-simple { margin-bottom: 1rem; }
+.events-intro-collapsed {
+  background: var(--surface);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+  font-size: 0.9rem;
+}
+
+.events-intro-collapsed summary { cursor: pointer; font-weight: 600; color: var(--primary); }
+
+.telegram-admin-panel {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow);
+}
+
+.telegram-admin-panel summary { cursor: pointer; font-weight: 600; color: var(--text-muted); }
 
 select, input, textarea {
   font-family: inherit;
@@ -320,27 +445,9 @@ select, input, textarea {
   flex-wrap: wrap;
 }
 
-/* Việc của tôi */
-.mine-header {
-  background: var(--surface);
-  padding: 1.25rem;
-  border-radius: var(--radius);
-  margin-bottom: 1.25rem;
-  box-shadow: var(--shadow);
-}
-
-.mine-header-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  justify-content: space-between;
-}
-
-.mine-header label { font-weight: 600; display: flex; align-items: center; gap: 0.75rem; }
-#mine-reminder-status .ok { color: #059669; }
-#mine-reminder-status .err { color: #dc2626; }
 .hint { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+/* Việc của tôi */
 
 .my-tasks-list { display: flex; flex-direction: column; gap: 0.75rem; }
 

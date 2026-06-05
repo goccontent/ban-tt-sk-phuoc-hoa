@@ -310,8 +310,13 @@ function formatCountdown(deadline, status) {
   return { text, overdue, done: false };
 }
 
+function shouldShowCountdown(deadline, status) {
+  if (status === 'da-dang') return false;
+  return !!deadlineAlert(deadline, status).level;
+}
+
 function countdownHTML(deadline, status, taskId = '') {
-  if (status === 'da-dang') return '';
+  if (!shouldShowCountdown(deadline, status)) return '';
   const dlClass = deadlineClass(deadline, status);
   const { text } = formatCountdown(deadline, status);
   return `<div class="countdown-clock ${dlClass}" data-countdown data-deadline="${deadline}" data-status="${status}"${taskId ? ` data-task-id="${taskId}"` : ''}>

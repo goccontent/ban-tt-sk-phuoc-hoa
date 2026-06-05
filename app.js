@@ -5,6 +5,8 @@ const ADMIN_SESSION_KEY = 'ban-tt-sk-admin-pin';
 let eventSectionState = { upcoming: true, past: false };
 let eventOpenState = {};
 let kanbanColOpen = { 'chua-lam': true, 'dang-lam': true, 'cho-duyet': true, 'da-dang': true };
+const STORAGE_VIEW_KEY = 'ban-tt-sk-view';
+let viewMode = localStorage.getItem(STORAGE_VIEW_KEY) || 'all';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -25,6 +27,7 @@ async function init() {
 
   populateSelects();
   bindEvents();
+  $$('.view-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === viewMode));
   renderAll();
   startCountdownTicker();
 
@@ -48,17 +51,74 @@ function showServerBadge() {
 
 function populateSelects() {
   const eventOpts = EVENTS.map(e => `<option value="${e.id}">${formatEventLabel(e)}</option>`).join('');
-  const filterEventOpts = EVENTS.map(e => `<option value="${e.id}">${formatEventLabel(e)}</option>`).join('');
   $('#task-event').innerHTML = eventOpts;
-  $('#filter-event').innerHTML = '<option value="">Tất cả sự kiện</option>' + filterEventOpts;
+  const datalist = $('#event-filter-list');
+  if (datalist) {
+    datalist.innerHTML = EVENTS.map(e => `<option value="${formatEventLabel(e)}">`).join('');
+  }
 
   const memberOpts = MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('');
   $('#task-owner').innerHTML = memberOpts;
   $('#task-helper').innerHTML = memberOpts;
-  $('#my-name').innerHTML = '<option value="">— Chọn tên —</option>' + memberOpts;
-
+  const cur = $('#my-name').value;
+  $('#my-name').innerHTML = '<option value="">— Chọn —</option>' + memberOpts;
   const savedUser = localStorage.getItem(STORAGE_USER_KEY);
   if (savedUser) $('#my-name').value = savedUser;
+  else if (cur) $('#my-name').value = cur;
+}
+
+function syncEventFilterFromSearch() {
+  const q = ($('#filter-event-search')?.value || '').trim().toLowerCase();
+  if (!q) {
+    $('#filter-event').value = '';
+    return;
+  }
+  const exact = EVENTS.find(e => formatEventLabel(e).toLowerCase() === q);
+  const partial = EVENTS.find(e =>
+    formatEventLabel(e).toLowerCase().includes(q) || e.name.toLowerCase().includes(q)
+  );
+  $('#filter-event').value = (exact || partial)?.id || '';
+}
+
+function setViewMode(mode) {
+  viewMode = mode;
+  localStorage.setItem(STORAGE_VIEW_KEY, mode);
+  $$('.view-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === mode));
+  if (mode === 'mine' && !$('#my-name').value) {
+    $('#mine-reminder-status').innerHTML = '<span class="hint warn">Chọn tên ở góc trên để xem việc của bạn</span>';
+  } else {
+    $('#mine-reminder-status').innerHTML = '';
+  }
+  updateWorkView();
+}
+
+function getActiveTasks() {
+  return tasks.filter((t) => !t.deletedAt);
+}
+
+function getTrashedTasks() {
+  return tasks.filter((t) => t.deletedAt).sort((a, b) => (b.deletedAt || '').localeCompare(a.deletedAt || ''));
+}
+
+function getFilteredTasks() {
+  let list = getActiveTasks();
+  const me = $('#my-name')?.value;
+  if (viewMode === 'mine' && me) {
+    list = list.filter((t) => t.owner === me || (t.helpers || []).includes(me));
+  }
+  const q = ($('#task-search')?.value || '').trim().toLowerCase();
+  if (q) {
+    list = list.filter((t) => {
+      const ev = getEvent(t.eventId);
+      const blob = [t.desc, t.owner, t.ban, t.phase, ev?.name || '', ...(t.helpers || [])].join(' ').toLowerCase();
+      return blob.includes(q);
+    });
+  }
+  const ban = $('#filter-ban')?.value;
+  if (ban) list = list.filter((t) => t.ban === ban);
+  const evId = $('#filter-event')?.value;
+  if (evId) list = list.filter((t) => t.eventId === evId);
+  return list;
 }
 
 function bindEvents() {
@@ -94,16 +154,24 @@ function bindEvents() {
   $('#btn-cancel').addEventListener('click', closeModal);
   $('#task-form').addEventListener('submit', saveTask);
 
-  $('#filter-ban').addEventListener('change', renderKanban);
-  $('#filter-event').addEventListener('change', renderKanban);
+  $$('.view-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setViewMode(btn.dataset.view));
+  });
+  $('#filter-ban').addEventListener('change', () => updateWorkView());
+  $('#task-search')?.addEventListener('input', () => updateWorkView());
+  $('#filter-event-search')?.addEventListener('input', () => {
+    syncEventFilterFromSearch();
+    updateWorkView();
+  });
   $('#task-event').addEventListener('change', () => { updatePhaseHint(); applyDeadlineFromPhase(); });
   $('#task-phase').addEventListener('change', () => { updatePhaseHint(); applyDeadlineFromPhase(); });
   $('#my-name').addEventListener('change', (e) => {
     localStorage.setItem(STORAGE_USER_KEY, e.target.value);
-    renderMyTasks();
     updateMemberReminderButton();
-    $('#mine-reminder-status').innerHTML = '';
+    if (viewMode === 'mine') setViewMode('mine');
+    else renderAll();
   });
+  $('#btn-backup')?.addEventListener('click', downloadBackup);
 
   $('#btn-send-member-reminder')?.addEventListener('click', sendMemberReminder);
   $('#btn-simulate-bot').addEventListener('click', () => previewReminders());
@@ -118,7 +186,9 @@ function bindEvents() {
 function updateMemberReminderButton() {
   const btn = $('#btn-send-member-reminder');
   if (!btn) return;
-  btn.disabled = !useServer || !$('#my-name').value;
+  const name = $('#my-name').value;
+  btn.disabled = !useServer || !name;
+  btn.title = name ? `Gửi nhắc Telegram cho ${name}` : 'Chọn tên trước';
 }
 
 async function importFromExcel(file) {
@@ -157,10 +227,39 @@ async function syncTasks() {
 
 function renderAll() {
   renderAlertBanner();
-  renderKanban();
-  renderMyTasks();
+  updateWorkView();
+  renderTrash();
   renderEvents();
   tickCountdowns();
+}
+
+function updateWorkView() {
+  if (viewMode === 'mine') {
+    $('#kanban-board').hidden = true;
+    $('#my-tasks').hidden = false;
+    renderMyTasks();
+  } else {
+    $('#kanban-board').hidden = false;
+    $('#my-tasks').hidden = true;
+    renderKanban();
+  }
+}
+
+async function downloadBackup() {
+  if (!useServer) {
+    const blob = new Blob([JSON.stringify({ tasks, events: EVENTS, timestamp: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `backup-local-${todayISO()}.json`;
+    a.click();
+    return;
+  }
+  try {
+    await apiFetch('/api/backup/create', { method: 'POST', body: '{}' });
+    window.open('/api/backup/latest', '_blank');
+  } catch (e) {
+    alert('Lỗi backup: ' + e.message);
+  }
 }
 
 function tickCountdowns() {
@@ -186,7 +285,7 @@ function renderAlertBanner() {
   const banner = $('#alert-banner');
   if (!banner) return;
   let overdue = 0, soon = 0;
-  tasks.forEach(t => {
+  getActiveTasks().forEach(t => {
     if (t.status === 'da-dang') return;
     const a = deadlineAlert(t.deadline, t.status);
     if (a.level === 'overdue') overdue++;
@@ -205,12 +304,7 @@ function renderAlertBanner() {
 }
 
 function renderKanban() {
-  const filterBan = $('#filter-ban').value;
-  const filterEvent = $('#filter-event').value;
-  let filtered = tasks;
-  if (filterBan) filtered = filtered.filter(t => t.ban === filterBan);
-  if (filterEvent) filtered = filtered.filter(t => t.eventId === filterEvent);
-
+  const filtered = getFilteredTasks();
   const statuses = ['chua-lam', 'dang-lam', 'cho-duyet', 'da-dang'];
   const board = $('#kanban-board');
   board.innerHTML = statuses.map(status => {
@@ -277,7 +371,7 @@ function taskCardHTML(t) {
       ${countdownHTML(t.deadline, t.status, t.id)}
       <div class="task-actions">
         ${nextStatus ? `<button class="btn btn-sm btn-secondary" data-action="next">→ ${STATUS_LABELS[nextStatus]}</button>` : ''}
-        <button class="btn btn-sm btn-ghost" data-action="delete">Xóa</button>
+        <button class="btn btn-sm btn-ghost" data-action="delete" title="Chuyển vào thùng rác">🗑</button>
       </div>
     </div>`;
 }
@@ -300,23 +394,66 @@ async function advanceStatus(id) {
 }
 
 async function deleteTask(id) {
-  if (!confirm('Xóa việc này?')) return;
-  tasks = tasks.filter(t => t.id !== id);
+  const t = tasks.find((x) => x.id === id);
+  if (!t || !confirm('Chuyển việc vào thùng rác?')) return;
+  t.deletedAt = new Date().toISOString();
   await syncTasks();
   renderAll();
+}
+
+async function restoreTask(id) {
+  const t = tasks.find((x) => x.id === id);
+  if (!t) return;
+  delete t.deletedAt;
+  await syncTasks();
+  renderAll();
+}
+
+async function purgeTask(id) {
+  if (!confirm('Xóa vĩnh viễn? Không khôi phục được.')) return;
+  tasks = tasks.filter((t) => t.id !== id);
+  await syncTasks();
+  renderAll();
+}
+
+function renderTrash() {
+  const trashed = getTrashedTasks();
+  const countEl = $('#trash-count');
+  if (countEl) countEl.textContent = trashed.length;
+  const list = $('#trash-list');
+  if (!list) return;
+  if (!trashed.length) {
+    list.innerHTML = '<p class="hint">Thùng rác trống</p>';
+    return;
+  }
+  list.innerHTML = trashed.map((t) => `
+    <div class="trash-item">
+      <div class="trash-item-info">
+        <strong>${t.owner}</strong> · ${t.desc.slice(0, 80)}${t.desc.length > 80 ? '…' : ''}
+        <span class="hint"> · ${formatDeadline(t.deadline)}</span>
+      </div>
+      <div class="trash-item-actions">
+        <button type="button" class="btn btn-sm btn-secondary" data-restore="${t.id}">Khôi phục</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-purge="${t.id}">Xóa hẳn</button>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('[data-restore]').forEach((btn) => {
+    btn.addEventListener('click', () => restoreTask(btn.dataset.restore));
+  });
+  list.querySelectorAll('[data-purge]').forEach((btn) => {
+    btn.addEventListener('click', () => purgeTask(btn.dataset.purge));
+  });
 }
 
 function renderMyTasks() {
   const name = $('#my-name').value;
   const container = $('#my-tasks');
   if (!name) {
-    container.innerHTML = '<div class="empty-state">Chọn tên của bạn để xem việc được giao</div>';
+    container.innerHTML = '<div class="empty-state">Chọn <strong>Tôi là</strong> ở góc trên header</div>';
     return;
   }
 
-  const mine = tasks.filter(t =>
-    t.owner === name || (t.helpers && t.helpers.includes(name))
-  ).sort((a, b) => a.deadline.localeCompare(b.deadline));
+  const mine = getFilteredTasks().sort((a, b) => a.deadline.localeCompare(b.deadline));
 
   if (!mine.length) {
     container.innerHTML = '<div class="empty-state">Không có việc nào được giao cho bạn</div>';
@@ -351,7 +488,7 @@ function renderMyTasks() {
 }
 
 function eventCardHTML(ev, isPast = false) {
-  const evTasks = tasks.filter(t => t.eventId === ev.id);
+  const evTasks = getActiveTasks().filter(t => t.eventId === ev.id);
   const isOpen = !!eventOpenState[ev.id];
   const rows = evTasks.length ? evTasks.map(t => `
       <div class="event-task-row" data-task-id="${t.id}">
@@ -571,7 +708,7 @@ async function saveTask(e) {
 function buildLocalPreview() {
   const now = new Date();
   const messages = {};
-  tasks.forEach(t => {
+  getActiveTasks().forEach(t => {
     if (t.status === 'da-dang') return;
     const a = deadlineAlert(t.deadline, t.status);
     if (!a.level) return;
@@ -710,7 +847,7 @@ async function sendMemberReminder() {
   const name = $('#my-name').value;
   if (!name || !useServer) return;
   if (!confirm(`Gửi danh sách việc đang mở qua Telegram cho ${name}?`)) return;
-  const status = $('#mine-reminder-status');
+  const status = $('#mine-reminder-status') || $('#tg-status');
   status.innerHTML = '<span class="hint">Đang gửi...</span>';
   try {
     const res = await apiFetch('/api/telegram/send-user', {

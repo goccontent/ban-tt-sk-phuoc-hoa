@@ -17,129 +17,132 @@
         <p class="subtitle">Giáo xứ Phước Hòa · Xứ đoàn Tôma Thiện</p>
       </div>
     </div>
+    <div class="header-actions">
+      <label class="header-user">
+        <span>Tôi là</span>
+        <select id="my-name" title="Chọn tên để lọc việc của bạn">
+          <option value="">— Chọn —</option>
+        </select>
+      </label>
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-send-member-reminder" title="Gửi nhắc Telegram">📱 Nhắc</button>
+    </div>
     <p class="motto">"Anh em là ánh sáng thế gian" (Mt 5,14)</p>
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="all">Cả ban</button>
-    <button class="tab" data-tab="mine">Việc của tôi</button>
+    <button class="tab active" data-tab="all">Việc</button>
     <button class="tab" data-tab="events">Sự kiện</button>
     <button class="tab" data-tab="bot">Bot nhắc</button>
   </nav>
 
   <main class="main">
-    <!-- TAB: CẢ BAN -->
+    <!-- TAB: VIỆC (Cả ban + của tôi) -->
     <section id="tab-all" class="tab-panel active">
       <div id="alert-banner" class="alert-banner" role="alert"></div>
+      <div id="mine-reminder-status" class="inline-status"></div>
+
+      <div class="view-toggle" role="group" aria-label="Chế độ xem">
+        <button type="button" class="view-btn active" data-view="all">Cả ban</button>
+        <button type="button" class="view-btn" data-view="mine">Việc của tôi</button>
+      </div>
+
       <div class="toolbar">
         <div class="toolbar-left">
+          <input type="search" id="task-search" class="search-input" placeholder="🔍 Tìm việc, người, sự kiện…" autocomplete="off">
           <select id="filter-ban">
             <option value="">Tất cả ban</option>
             <option value="Nội dung">Nội dung</option>
             <option value="Kỹ thuật">Kỹ thuật</option>
             <option value="Quản trị">Quản trị</option>
           </select>
-          <select id="filter-event">
-            <option value="">Tất cả sự kiện</option>
-          </select>
+          <input type="search" id="filter-event-search" class="search-input search-input-sm" placeholder="Lọc sự kiện…" list="event-filter-list" autocomplete="off">
+          <datalist id="event-filter-list"></datalist>
+          <input type="hidden" id="filter-event" value="">
         </div>
-        <input type="file" id="excel-file" accept=".xlsx,.xlsm" hidden>
-        <button class="btn btn-secondary" id="btn-import-excel" title="Import sự kiện từ file Excel">📥 Import Excel</button>
-        <a class="btn btn-ghost btn-sm" href="mau-ke-hoach-su-kien.xlsx" download>Mẫu Excel</a>
-        <button class="btn btn-primary" id="btn-add-task">+ Thêm việc</button>
+        <div class="toolbar-right">
+          <input type="file" id="excel-file" accept=".xlsx,.xlsm" hidden>
+          <button class="btn btn-ghost btn-sm" id="btn-backup" title="Tải bản sao lưu mới nhất">💾 Backup</button>
+          <button class="btn btn-secondary btn-sm" id="btn-import-excel" title="Import sự kiện Excel">📥 Excel</button>
+          <a class="btn btn-ghost btn-sm" href="mau-ke-hoach-su-kien.xlsx" download>Mẫu</a>
+          <button class="btn btn-primary" id="btn-add-task">+ Thêm việc</button>
+        </div>
       </div>
-      <div class="kanban" id="kanban-board"></div>
-    </section>
 
-    <!-- TAB: VIỆC CỦA TÔI -->
-    <section id="tab-mine" class="tab-panel">
-      <div class="mine-header">
-        <div class="mine-header-row">
-          <label>Xem việc của:
-            <select id="my-name">
-              <option value="">— Chọn tên —</option>
-            </select>
-          </label>
-          <button type="button" class="btn btn-secondary" id="btn-send-member-reminder" title="Gửi danh sách việc qua Telegram">📱 Gửi tin nhắc việc ngay</button>
-        </div>
-        <p class="hint">Chọn tên thành viên để xem việc chủ trì / phối hợp. Người giao việc có thể bấm gửi nhắc qua Telegram.</p>
-        <p id="mine-reminder-status" class="hint"></p>
+      <div id="work-board">
+        <div class="kanban" id="kanban-board"></div>
+        <div id="my-tasks" class="my-tasks-list" hidden></div>
       </div>
-      <div id="my-tasks" class="my-tasks-list"></div>
+
+      <details class="trash-panel" id="trash-panel">
+        <summary>🗑 Thùng rác <span id="trash-count" class="badge-count">0</span></summary>
+        <div id="trash-list" class="trash-list"></div>
+      </details>
     </section>
 
     <!-- TAB: SỰ KIỆN -->
     <section id="tab-events" class="tab-panel">
-      <div class="events-intro">
-        <h2>Khung lập kế hoạch — 5 bước</h2>
+      <details class="events-intro-collapsed">
+        <summary>Hướng dẫn lập kế hoạch (5 bước)</summary>
         <ol class="steps">
-          <li><strong>Bóc sự kiện thành đầu việc</strong> — Trước / Trong / Sau, mỗi việc một dòng</li>
-          <li><strong>Mô tả theo công thức</strong> — Động từ + Sản phẩm cụ thể + Nơi đăng</li>
-          <li><strong>Giao việc rõ</strong> — 1 Chủ trì (tên người) + Phối hợp</li>
-          <li><strong>Đặt hạn</strong> — Có ngày + giờ: <em>Trước</em> = 2 ngày trước SK (08:00); <em>Sau</em> = trong 24h sau SK</li>
-          <li><strong>Theo dõi</strong> — Trạng thái 4 nấc + nhắc định kỳ</li>
+          <li><strong>Bóc sự kiện thành đầu việc</strong> — Trước / Trong / Sau</li>
+          <li><strong>Mô tả</strong> — Động từ + Sản phẩm + Nơi đăng</li>
+          <li><strong>Giao việc</strong> — 1 Chủ trì + Phối hợp</li>
+          <li><strong>Đặt hạn</strong> — Trước 08:00 · Trong 17:30 · Sau +24h</li>
+          <li><strong>Theo dõi</strong> — 4 trạng thái + nhắc định kỳ</li>
         </ol>
-      </div>
+      </details>
       <div id="events-list" class="events-list"></div>
     </section>
 
     <!-- TAB: BOT NHẮC -->
     <section id="tab-bot" class="tab-panel">
-      <div class="bot-intro">
-        <div class="bot-card">
-          <h3>Bảng để THẤY</h3>
-          <p>Cả ban cùng nhìn ở Kanban — liếc là biết ai làm gì, tới đâu.</p>
-        </div>
-        <div class="bot-card highlight">
-          <h3>Bot Telegram để NHẮC</h3>
-          <p>Mỗi sáng gửi riêng từng người danh sách việc + hạn. Sheet → Script → Bot.</p>
-        </div>
-      </div>
-
-      <div class="telegram-setup" id="telegram-setup">
-        <h3>Cấu hình Telegram</h3>
-        <div id="tg-locked-banner" class="tg-locked-banner" hidden>
-          <p><strong>🔒 Token bot và Group ID đã khóa</strong> — chỉ quản trị viên mới sửa được (cấu hình trên Render).</p>
-          <p id="tg-locked-status" class="hint"></p>
-          <button type="button" class="btn btn-ghost btn-sm" id="btn-tg-admin">Mở khóa quản trị viên</button>
-        </div>
-        <div class="tg-form" id="tg-secret-fields">
-          <div class="form-group">
-            <label>Bot Token <span class="label-hint">(từ @BotFather)</span></label>
-            <input type="password" id="tg-token" placeholder="123456:ABC-DEF..." autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label>Group Chat ID <span class="label-hint">(nhóm ban, tùy chọn)</span></label>
-            <input type="text" id="tg-group" placeholder="-1001234567890" autocomplete="off">
-          </div>
-        </div>
-        <div class="tg-form tg-form-public">
-          <div class="form-group">
-            <label>Giờ nhắc sáng</label>
-            <input type="number" id="tg-hour" min="0" max="23" value="7">
-          </div>
-          <label class="checkbox-label">
-            <input type="checkbox" id="tg-enabled"> Bật bot Telegram
-          </label>
-        </div>
+      <div class="bot-simple">
+        <p class="hint">Bot <strong>@tnttph_bot</strong> — thành viên gõ <code>/start Tên</code> để nhận nhắc riêng.</p>
         <div class="tg-actions">
-          <button class="btn btn-secondary tg-admin-only" id="btn-tg-save">Lưu cấu hình</button>
-          <button class="btn btn-secondary tg-admin-only" id="btn-tg-test">Kiểm tra bot</button>
-          <button class="btn btn-secondary tg-admin-only" id="btn-tg-webhook">Kết nối Webhook</button>
-          <button class="btn btn-secondary" id="btn-tg-save-public">Lưu giờ nhắc</button>
           <button class="btn btn-primary" id="btn-tg-send">Gửi nhắc ngay (cả ban)</button>
-          <button class="btn btn-ghost" id="btn-simulate-bot">Xem trước (không gửi)</button>
+          <button class="btn btn-ghost" id="btn-simulate-bot">Xem trước</button>
         </div>
-        <p class="hint tg-hint" id="tg-deploy-hint"></p>
-        <p class="hint tg-hint">
-          Thành viên nhắn bot: <code>/start Tên</code> — VD: <code>/start Khánh Huyền</code>
-          · <code>/viectoi</code> xem việc
-        </p>
-        <div id="tg-status" class="tg-status"></div>
         <div id="tg-users" class="tg-users"></div>
+        <div id="tg-status" class="tg-status"></div>
+        <div id="bot-messages" class="bot-messages"></div>
       </div>
 
-      <div id="bot-messages" class="bot-messages"></div>
+      <details class="telegram-admin-panel" id="telegram-setup">
+        <summary>⚙️ Cài đặt kỹ thuật (quản trị)</summary>
+        <div class="telegram-setup">
+          <div id="tg-locked-banner" class="tg-locked-banner" hidden>
+            <p><strong>🔒 Token và Group ID đã khóa trên server</strong></p>
+            <p id="tg-locked-status" class="hint"></p>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-tg-admin">Mở khóa quản trị</button>
+          </div>
+          <div class="tg-form" id="tg-secret-fields">
+            <div class="form-group">
+              <label>Bot Token</label>
+              <input type="password" id="tg-token" placeholder="từ @BotFather" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Group Chat ID</label>
+              <input type="text" id="tg-group" placeholder="-100..." autocomplete="off">
+            </div>
+          </div>
+          <div class="tg-form tg-form-public">
+            <div class="form-group">
+              <label>Giờ nhắc sáng</label>
+              <input type="number" id="tg-hour" min="0" max="23" value="7">
+            </div>
+            <label class="checkbox-label">
+              <input type="checkbox" id="tg-enabled"> Bật bot
+            </label>
+          </div>
+          <div class="tg-actions">
+            <button class="btn btn-secondary tg-admin-only" id="btn-tg-save">Lưu cấu hình</button>
+            <button class="btn btn-secondary tg-admin-only" id="btn-tg-test">Kiểm tra</button>
+            <button class="btn btn-secondary tg-admin-only" id="btn-tg-webhook">Webhook</button>
+            <button class="btn btn-secondary" id="btn-tg-save-public">Lưu giờ nhắc</button>
+          </div>
+          <p class="hint tg-hint" id="tg-deploy-hint"></p>
+        </div>
+      </details>
     </section>
   </main>
 
@@ -250,7 +253,6 @@
         <div class="form-group">
           <label>Hiển thị</label>
           <input type="text" id="event-date-display" readonly class="readonly-input" placeholder="01.06.2026">
-          <span class="label-hint">Tự điền từ ngày chọn</span>
         </div>
       </div>
       <footer class="modal-footer">
