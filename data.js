@@ -359,6 +359,26 @@ function phaseLabel(phase) {
   return PHASE_LABELS[phase] || phase || '';
 }
 
+// Cảnh báo khi NHỊP không khớp với HẠN so với thời gian sự kiện.
+// Trả chuỗi cảnh báo (rỗng nếu hợp lý). So sánh theo ngày.
+function phaseDeadlineWarning(task, ev) {
+  const range = parseEventDateRange(ev);
+  if (!range || !task?.deadline) return '';
+  const dl = (splitDeadline(task.deadline).date || '').slice(0, 10);
+  if (!dl) return '';
+  const { startISO, endISO } = range;
+  if (task.phase === 'Trước' && dl > startISO) {
+    return '⚠ Hạn rơi vào/sau ngày sự kiện — nhịp này nên là "Trong" hoặc "Sau"';
+  }
+  if (task.phase === 'Trong' && (dl < startISO || dl > endISO)) {
+    return '⚠ Hạn ngoài thời gian sự kiện — nên đổi nhịp (Trước/Sau)';
+  }
+  if (task.phase === 'Sau' && dl < startISO) {
+    return '⚠ Hạn trước khi sự kiện bắt đầu — nhịp này nên là "Trước"';
+  }
+  return '';
+}
+
 function parseDeadlineDate(dl) {
   const { date, time } = splitDeadline(dl);
   const [y, mo, d] = date.split('-').map(Number);

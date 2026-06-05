@@ -377,6 +377,19 @@ select, input, textarea {
   flex-wrap: wrap;
 }
 
+/* Cảnh báo nhịp không khớp hạn */
+.task-phase-warn {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+}
+.phase-warn-mark { color: #b45309; cursor: help; }
+
 .task-self-actions { display: flex; gap: 0.35rem; margin-top: 0.5rem; }
 /* Người thường chỉ thấy nút đổi trạng thái trên việc CỦA MÌNH */
 body.not-admin .task-self-actions:not(.is-mine) { display: none; }

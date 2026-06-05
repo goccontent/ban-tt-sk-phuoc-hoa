@@ -509,6 +509,7 @@ function taskListItemHTML(t, me, mineMode) {
   const rank = urgencyRank(t);
   const urgent = rank === 0 || rank === 1; // quá hạn hoặc gần đến hạn
   const when = eventWhenText(ev);
+  const phaseWarn = phaseDeadlineWarning(t, ev);
   return `
     <div class="my-task-item ${isOwner && mineMode ? 'chinh' : ''} ${dlClass}" data-id="${t.id}">
       <div class="task-main">
@@ -520,6 +521,7 @@ function taskListItemHTML(t, me, mineMode) {
         </div>
         ${when ? `<div class="task-event-when">🗓 Sự kiện: ${when}</div>` : ''}
         <div class="task-deadline ${dlClass}">Hạn: ${formatDeadlineFull(t.deadline)}</div>
+        ${phaseWarn ? `<div class="task-phase-warn">${phaseWarn}</div>` : ''}
         ${countdownHTML(t.deadline, t.status, t.id)}
       </div>
       <div class="task-side">
@@ -620,7 +622,7 @@ function eventCardHTML(ev, isPast = false) {
   const mineCount = me ? evTasks.filter(taskIsMine).length : 0;
   const rows = evTasks.length ? evTasks.map(t => `
       <div class="event-task-row${taskIsMine(t) ? ' event-task-mine' : ''}" data-task-id="${t.id}">
-        <span data-label="Nhịp">${phaseLabel(t.phase)}</span>
+        <span data-label="Nhịp">${phaseLabel(t.phase)}${phaseDeadlineWarning(t, ev) ? ` <span class="phase-warn-mark" title="${phaseDeadlineWarning(t, ev)}">⚠</span>` : ''}</span>
         <span data-label="Đầu việc">${t.desc}</span>
         <span data-label="Chủ trì">${t.owner}</span>
         <span data-label="Phối hợp">${t.helpers?.join(', ') || '—'}</span>
