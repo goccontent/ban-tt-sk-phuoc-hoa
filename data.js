@@ -46,9 +46,16 @@ const API_BASE = '';
 
 let useServer = false;
 
+const APP_PIN_KEY = 'ban-tt-sk-app-pin';
+
 async function apiFetch(path, opts = {}) {
+  const appPin = sessionStorage.getItem(APP_PIN_KEY);
   const res = await fetch(API_BASE + path, {
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(appPin ? { 'X-App-Pin': appPin } : {}),
+      ...opts.headers,
+    },
     ...opts
   });
   if (!res.ok) throw new Error(await res.text());
@@ -239,20 +246,24 @@ function classifyEvents(eventList) {
 
 function calcDeadlineForPhase(eventId, phase) {
   const ev = getEvent(eventId);
-  const iso = parseEventDateISO(ev);
-  if (!iso) return null;
-  const [y, mo, d] = iso.split('-').map(Number);
-  const base = new Date(y, mo - 1, d);
+  const range = parseEventDateRange(ev);
+  if (!range) return null;
+
+  // "Trước" và "Trong" neo theo ngày bắt đầu; "Sau" neo theo ngày kết thúc
+  // (sự kiện nhiều ngày: hạn "Sau" phải tính từ ngày cuối, không phải ngày đầu).
+  const [sy, smo, sd] = range.startISO.split('-').map(Number);
 
   if (phase === 'Trước') {
+    const base = new Date(sy, smo - 1, sd);
     base.setDate(base.getDate() - 2);
     return toDeadlineISO(base, '08:00');
   }
   if (phase === 'Trong') {
-    return toDeadlineISO(base, '17:30');
+    return toDeadlineISO(new Date(sy, smo - 1, sd), '17:30');
   }
   if (phase === 'Sau') {
-    const end = new Date(y, mo - 1, d, 18, 0, 0);
+    const [ey, emo, ed] = range.endISO.split('-').map(Number);
+    const end = new Date(ey, emo - 1, ed, 18, 0, 0);
     end.setTime(end.getTime() + 24 * 3600000);
     const hh = String(end.getHours()).padStart(2, '0');
     const mm = String(end.getMinutes()).padStart(2, '0');

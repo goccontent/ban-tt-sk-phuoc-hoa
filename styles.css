@@ -105,6 +105,11 @@ body {
 .tab.active { background: var(--primary); color: white; }
 
 .main { padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
+@media (max-width: 600px) {
+  .header { padding: 1rem; }
+  .tabs { padding: 0.6rem 1rem; }
+  .main { padding: 1rem; }
+}
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 
@@ -236,90 +241,6 @@ select, input, textarea {
 .btn-ghost { background: transparent; color: var(--text-muted); }
 .btn-ghost:hover { background: var(--bg); }
 .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-
-/* Kanban */
-.kanban {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  min-height: 400px;
-}
-
-@media (max-width: 1100px) { .kanban { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .kanban { grid-template-columns: 1fr; } }
-
-.kanban-col {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 1rem;
-  box-shadow: var(--shadow);
-  border-top: 4px solid var(--primary);
-}
-
-.kanban-col[data-status="chua-lam"] { border-top-color: #f59e0b; }
-.kanban-col[data-status="dang-lam"] { border-top-color: #3b82f6; }
-.kanban-col[data-status="cho-duyet"] { border-top-color: #ec4899; }
-.kanban-col[data-status="da-dang"] { border-top-color: #10b981; }
-
-.col-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  user-select: none;
-  gap: 0.4rem;
-}
-.col-chevron {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  transition: transform 0.2s;
-  margin-left: auto;
-}
-.kanban-col[data-status] .col-header[aria-expanded="false"] .col-chevron {
-  transform: rotate(-90deg);
-}
-@media (min-width: 601px) {
-  .col-chevron { display: none; }
-  .col-header { cursor: default; }
-}
-
-.col-count {
-  background: var(--bg);
-  padding: 0.15rem 0.5rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-.col-body { display: flex; flex-direction: column; gap: 0.75rem; }
-
-.task-card {
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 0.85rem;
-  margin-bottom: 0.65rem;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-}
-
-.task-card:hover { border-color: var(--primary); transform: translateY(-1px); }
-
-.task-ban {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  margin-bottom: 0.4rem;
-  text-transform: uppercase;
-}
-
-.ban-noi-dung { background: #dbeafe; color: #1e40af; }
-.ban-ky-thuat { background: #fef3c7; color: #92400e; }
-.ban-quan-tri { background: #e9d5ff; color: #6b21a8; }
 
 .task-desc { font-size: 0.88rem; margin-bottom: 0.5rem; line-height: 1.4; }
 .task-meta { font-size: 0.78rem; color: var(--text-muted); }
@@ -456,6 +377,29 @@ select, input, textarea {
 }
 
 .my-task-item.chinh { border-left-color: var(--accent); }
+
+.my-task-item .task-main { min-width: 0; }
+.my-task-item .task-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* Quyền: ẩn mọi nút quản trị khi không phải admin (Trọng) */
+body.not-admin #btn-add-task,
+body.not-admin #btn-send-member-reminder,
+body.not-admin #btn-add-member,
+body.not-admin #btn-import-excel,
+body.not-admin .tabs .tab[data-tab="bot"],
+body.not-admin #trash-panel,
+body.not-admin .task-actions,
+body.not-admin .btn-add-event-task { display: none !important; }
+
+/* Người thường: thẻ việc không giả vờ bấm được để sửa */
+body.not-admin .my-task-item,
+body.not-admin .event-task-row[data-task-id] { cursor: default; }
+
 .status-badge {
   font-size: 0.75rem;
   font-weight: 600;
@@ -637,40 +581,54 @@ select, input, textarea {
 .event-task-row.header { font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
 
 @media (max-width: 900px) {
-  .event-task-row { grid-template-columns: 1fr; gap: 0.25rem; }
+  .event-task-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+    padding: 0.75rem 0;
+  }
   .event-task-row.header { display: none; }
+  .event-task-row > span[data-label] {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+  .event-task-row > span[data-label]::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
 }
 
 /* Bot */
-.bot-intro {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-@media (max-width: 600px) { .bot-intro { grid-template-columns: 1fr; } }
-
-.bot-card {
-  background: var(--surface);
-  padding: 1.25rem;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.bot-card.highlight { border: 2px solid var(--accent); background: var(--accent-soft); }
-.bot-card h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--primary); }
-.bot-card p { font-size: 0.9rem; color: var(--text-muted); }
-
-.bot-controls {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 1.25rem;
-  flex-wrap: wrap;
-}
-
 .checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; }
+
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.checkbox-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-item:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.checkbox-item input { width: 1.1rem; height: 1.1rem; }
 
 .bot-messages { display: flex; flex-direction: column; gap: 0.75rem; }
 
@@ -724,6 +682,10 @@ select, input, textarea {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   padding: 1.5rem;
+}
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; gap: 0.75rem; padding: 1.25rem; }
+  input[type="date"], input[type="time"], input[type="number"] { max-width: 100%; }
 }
 
 .form-group { display: flex; flex-direction: column; gap: 0.35rem; }

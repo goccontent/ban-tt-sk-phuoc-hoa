@@ -72,6 +72,41 @@ def is_admin_request(body=None):
 def secrets_locked():
     return bool(os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAM_GROUP_CHAT_ID"))
 
+
+def write_pin_required():
+    return bool(os.getenv("APP_WRITE_PIN"))
+
+
+def write_pin_ok():
+    expected = os.getenv("APP_WRITE_PIN", "")
+    if not expected:
+        return True
+    supplied = (request.headers.get("X-App-Pin") or "").strip()
+    return supplied == expected
+
+
+# Chỉ chặn ghi (POST/PUT/DELETE) lên dữ liệu việc/sự kiện/thành viên.
+# Đọc (GET) vẫn mở để mọi người xem; các endpoint có khóa riêng (cron, webhook,
+# admin, auth) không đi qua guard này.
+_GUARDED_PREFIXES = ("/api/tasks", "/api/events", "/api/members")
+
+
+@app.before_request
+def guard_data_writes():
+    if request.method not in ("POST", "PUT", "DELETE", "PATCH"):
+        return
+    path = request.path
+    if not any(path.startswith(p) for p in _GUARDED_PREFIXES):
+        return
+    if write_pin_ok():
+        return
+    return jsonify({
+        "ok": False,
+        "error": "write_locked",
+        "message": "Cần mã truy cập của Ban để thay đổi dữ liệu",
+    }), 401
+
+
 _initialized = False
 
 
@@ -419,6 +454,22 @@ def cron_remind():
     if not expected or key != expected:
         return jsonify({"ok": False, "error": "Unauthorized"}), 403
     return jsonify(send_reminders())
+
+
+@app.route("/api/auth/status", methods=["GET"])
+def auth_status():
+    return jsonify({"write_protected": write_pin_required()})
+
+
+@app.route("/api/auth/verify-write", methods=["POST"])
+def auth_verify_write():
+    body = request.get_json(silent=True) or {}
+    if not write_pin_required():
+        return jsonify({"ok": True, "write_protected": False})
+    supplied = (body.get("pin") or request.headers.get("X-App-Pin") or "").strip()
+    if supplied == os.getenv("APP_WRITE_PIN", ""):
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "Mã không đúng"}), 401
 
 
 @app.route("/api/health", methods=["GET"])

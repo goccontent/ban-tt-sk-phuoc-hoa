@@ -104,20 +104,23 @@ def parse_excel(file_path_or_stream):
 
 
 def to_event_records(parsed_rows, existing_ids=None):
-    from deadline_rules import parse_event_date_iso  # noqa: PLC0415
+    from deadline_rules import parse_event_date_range  # noqa: PLC0415
     from events_store import make_event_id  # noqa: PLC0415
 
     existing_ids = set(existing_ids or [])
     events = []
     for row in parsed_rows:
         eid = make_event_id(row["name"], row["date"], existing_ids | {e["id"] for e in events})
-        ev_date = parse_event_date_iso(row["date"])
+        rng = parse_event_date_range(row["date"])
         rec = {
             "id": eid,
             "name": row["name"],
             "date": row["date"],
         }
-        if ev_date:
-            rec["eventDate"] = ev_date.isoformat()
+        if rng:
+            start, end = rng
+            # eventDate = ngày kết thúc (như data.js đọc endISO); eventStartDate = ngày bắt đầu
+            rec["eventDate"] = end.isoformat()
+            rec["eventStartDate"] = start.isoformat()
         events.append(rec)
     return events

@@ -4,9 +4,13 @@ let countdownTimer = null;
 const ADMIN_SESSION_KEY = 'ban-tt-sk-admin-pin';
 let eventSectionState = { upcoming: true, past: false };
 let eventOpenState = {};
-let kanbanColOpen = { 'chua-lam': true, 'dang-lam': true, 'cho-duyet': true, 'da-dang': true };
 const STORAGE_VIEW_KEY = 'ban-tt-sk-view';
 let viewMode = localStorage.getItem(STORAGE_VIEW_KEY) || 'all';
+
+// --- Quản trị (admin) ---
+const ADMIN_NAME = 'Trọng';
+const ADMIN_PASSWORD = 'Trong@12345';
+const ADMIN_AUTH_KEY = 'ban-tt-sk-admin-authed';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -16,6 +20,43 @@ function adminHeaders() {
   return pin ? { 'X-Admin-Pin': pin } : {};
 }
 
+// Admin = đã chọn "Trọng" ở ô "Tôi là" VÀ đã đăng nhập đúng mật mã trong phiên này.
+function isAdminActive() {
+  return $('#my-name')?.value === ADMIN_NAME && sessionStorage.getItem(ADMIN_AUTH_KEY) === '1';
+}
+
+function promptAdminLogin() {
+  if (sessionStorage.getItem(ADMIN_AUTH_KEY) === '1') return true;
+  for (let i = 0; i < 3; i++) {
+    const p = prompt(`Đăng nhập quản trị — ${ADMIN_NAME}\nNhập mật mã:`);
+    if (p === null) return false;
+    if (p === ADMIN_PASSWORD) {
+      sessionStorage.setItem(ADMIN_AUTH_KEY, '1');
+      // Dùng luôn mật mã này làm mã ghi gửi lên server (nếu server có bật APP_WRITE_PIN)
+      sessionStorage.setItem(APP_PIN_KEY, p);
+      return true;
+    }
+    alert('Mật mã không đúng. Thử lại.');
+  }
+  return false;
+}
+
+// Hiện/ẩn các nút chỉ dành cho admin (qua class body.not-admin trong CSS)
+function applyAdminUI() {
+  const admin = isAdminActive();
+  document.body.classList.toggle('not-admin', !admin);
+  if (!admin) {
+    const botTab = document.querySelector('.tab[data-tab="bot"]');
+    if (botTab?.classList.contains('active')) switchToTab('all');
+  }
+  updateMemberReminderButton();
+}
+
+function switchToTab(name) {
+  $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+  $$('.tab-panel').forEach((p) => p.classList.toggle('active', p.id === `tab-${name}`));
+}
+
 async function init() {
   await checkServer();
   await loadMembers();
@@ -23,11 +64,14 @@ async function init() {
   const loaded = await loadTasks();
   tasks = migrateTasksDeadlines(loaded);
   if (useServer && JSON.stringify(loaded) !== JSON.stringify(tasks)) {
-    await persistTasks(tasks);
+    await tryPersist(tasks);
   }
 
   populateSelects();
   bindEvents();
+  // Mở app ở chế độ "việc chung": chưa chọn tên → xem Cả ban
+  viewMode = 'all';
+  applyAdminUI();
   $$('.view-btn').forEach((b) => b.classList.toggle('active', b.dataset.view === viewMode));
   renderAll();
   startCountdownTicker();
@@ -58,12 +102,13 @@ function populateSelects() {
 
   const memberOpts = MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('');
   $('#task-owner').innerHTML = memberOpts;
-  $('#task-helper').innerHTML = memberOpts;
+  $('#task-helper').innerHTML = MEMBERS.map(m =>
+    `<label class="checkbox-item"><input type="checkbox" value="${m}"> ${m}</label>`
+  ).join('');
+  // Giữ lựa chọn hiện tại khi nạp lại danh sách giữa phiên; mặc định mở app là "— Chọn —"
   const cur = $('#my-name').value;
   $('#my-name').innerHTML = '<option value="">— Chọn —</option>' + memberOpts;
-  const savedUser = localStorage.getItem(STORAGE_USER_KEY);
-  if (savedUser) $('#my-name').value = savedUser;
-  else if (cur) $('#my-name').value = cur;
+  if (cur) $('#my-name').value = cur;
 }
 
 function setViewMode(mode) {
@@ -102,10 +147,11 @@ function getFilteredTasks() {
 function bindEvents() {
   $$('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      $$('.tab').forEach(t => t.classList.remove('active'));
-      $$('.tab-panel').forEach(p => p.classList.remove('active'));
-      tab.classList.add('active');
-      $(`#tab-${tab.dataset.tab}`).classList.add('active');
+      if (tab.dataset.tab === 'bot' && !isAdminActive()) {
+        alert(`Chỉ quản trị (${ADMIN_NAME}) mới mở được "Bot nhắc".\nChọn "${ADMIN_NAME}" ở ô "Tôi là" và đăng nhập.`);
+        return;
+      }
+      switchToTab(tab.dataset.tab);
       if (tab.dataset.tab === 'bot' && useServer) loadTelegramUsers();
     });
   });
@@ -140,10 +186,22 @@ function bindEvents() {
   $('#task-event').addEventListener('change', () => { updatePhaseHint(); applyDeadlineFromPhase(); });
   $('#task-phase').addEventListener('change', () => { updatePhaseHint(); applyDeadlineFromPhase(); });
   $('#my-name').addEventListener('change', (e) => {
-    localStorage.setItem(STORAGE_USER_KEY, e.target.value);
+    let name = e.target.value;
+    // Chọn "Trọng" → yêu cầu đăng nhập quản trị
+    if (name === ADMIN_NAME && !promptAdminLogin()) {
+      e.target.value = '';
+      name = '';
+    }
+    localStorage.setItem(STORAGE_USER_KEY, name);
+    applyAdminUI();
     updateMemberReminderButton();
-    // Chọn tên thì auto chuyển sang "Việc của tôi" để hiện việc ngay
-    setViewMode('mine');
+    if (name) {
+      // Chọn tên cụ thể → chỉ hiện việc của người đó
+      setViewMode('mine');
+    } else {
+      // Về "— Chọn —" → xem việc chung của cả ban
+      setViewMode('all');
+    }
   });
   $('#btn-backup')?.addEventListener('click', downloadBackup);
   $('#btn-add-member')?.addEventListener('click', openMemberModal);
@@ -200,7 +258,27 @@ async function importFromExcel(file) {
 }
 
 async function syncTasks() {
-  await persistTasks(tasks);
+  try {
+    await persistTasks(tasks);
+  } catch (e) {
+    if (String(e.message || '').includes('write_locked')) {
+      sessionStorage.removeItem(APP_PIN_KEY);
+      sessionStorage.removeItem(ADMIN_AUTH_KEY);
+      applyAdminUI();
+      alert('Phiên quản trị hết hiệu lực. Chọn lại "Trọng" và đăng nhập để lưu.');
+    } else {
+      throw e;
+    }
+  }
+}
+
+// Lưu nhưng bỏ qua lỗi khóa ghi (dùng cho việc nền như migrate deadline)
+async function tryPersist(data) {
+  try {
+    await persistTasks(data);
+  } catch (e) {
+    if (!String(e.message || '').includes('write_locked')) throw e;
+  }
 }
 
 function renderAll() {
@@ -212,15 +290,8 @@ function renderAll() {
 }
 
 function updateWorkView() {
-  if (viewMode === 'mine') {
-    $('#kanban-board').hidden = true;
-    $('#my-tasks').hidden = false;
-    renderMyTasks();
-  } else {
-    $('#kanban-board').hidden = false;
-    $('#my-tasks').hidden = true;
-    renderKanban();
-  }
+  // Cả ban lẫn "việc của tôi" đều dùng chung danh sách ưu tiên (gấp lên đầu)
+  renderTaskList();
 }
 
 function openMemberModal() {
@@ -321,47 +392,54 @@ function renderAlertBanner() {
   banner.innerHTML = parts.join('') + '<span style="font-weight:500">— Cần xử lý sớm!</span>';
 }
 
-function renderKanban() {
-  const filtered = getFilteredTasks();
-  const statuses = ['chua-lam', 'dang-lam', 'cho-duyet', 'da-dang'];
-  const board = $('#kanban-board');
-  board.innerHTML = statuses.map(status => {
-    const colTasks = filtered.filter(t => t.status === status);
-    const isOpen = !!kanbanColOpen[status];
-    return `
-      <div class="kanban-col" data-status="${status}">
-        <div class="col-header" data-col-toggle="${status}" role="button" tabindex="0" aria-expanded="${isOpen}">
-          <span>${STATUS_LABELS[status]}</span>
-          <span class="col-count">${colTasks.length}</span>
-          <span class="col-chevron" aria-hidden="true">▼</span>
-        </div>
-        <div class="col-body" ${isOpen ? '' : 'hidden'}>
-          ${colTasks.map(t => taskCardHTML(t)).join('')}
-        </div>
-      </div>`;
-  }).join('');
+// Mức ưu tiên: quá hạn (0) → gần đến hạn (1) → bình thường (2) → đã xong (3)
+function urgencyRank(t) {
+  if (t.status === 'da-dang') return 3;
+  const a = deadlineAlert(t.deadline, t.status);
+  if (a.level === 'overdue') return 0;
+  if (a.level === 'soon') return 1;
+  return 2;
+}
 
-  board.querySelectorAll('[data-col-toggle]').forEach(hdr => {
-    const toggle = () => {
-      const status = hdr.dataset.colToggle;
-      kanbanColOpen[status] = !kanbanColOpen[status];
-      renderKanban();
-    };
-    hdr.addEventListener('click', toggle);
-    hdr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') toggle(); });
+function sortTasksForBoard(list) {
+  return [...list].sort((a, b) => {
+    const ra = urgencyRank(a), rb = urgencyRank(b);
+    if (ra !== rb) return ra - rb;
+    return (a.deadline || '').localeCompare(b.deadline || '');
   });
+}
 
-  board.querySelectorAll('.task-card').forEach(card => {
-    card.addEventListener('click', (e) => {
+function renderTaskList() {
+  const container = $('#my-tasks');
+  const me = $('#my-name').value;
+  const mineMode = viewMode === 'mine';
+
+  if (mineMode && !me) {
+    container.innerHTML = '<div class="empty-state">Chọn tên ở ô <strong>Tôi là</strong> để xem việc của bạn</div>';
+    return;
+  }
+
+  const list = sortTasksForBoard(getFilteredTasks());
+  if (!list.length) {
+    container.innerHTML = `<div class="empty-state">${mineMode ? `Không có việc nào của ${me}` : 'Chưa có việc nào'}</div>`;
+    return;
+  }
+
+  container.innerHTML = list.map(t => taskListItemHTML(t, me, mineMode)).join('');
+
+  container.querySelectorAll('.my-task-item').forEach(item => {
+    item.addEventListener('click', (e) => {
       if (e.target.closest('.task-actions')) return;
-      openModal(card.dataset.id);
+      if (!isAdminActive()) return; // chỉ admin mới sửa việc
+      openModal(item.dataset.id);
     });
   });
 
-  board.querySelectorAll('[data-action]').forEach(btn => {
+  container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const id = btn.closest('.task-card').dataset.id;
+      if (!isAdminActive()) return;
+      const id = btn.closest('.my-task-item').dataset.id;
       const action = btn.dataset.action;
       if (action === 'next') advanceStatus(id);
       else if (action === 'delete') deleteTask(id);
@@ -369,27 +447,34 @@ function renderKanban() {
   });
 }
 
-function taskCardHTML(t) {
+function taskListItemHTML(t, me, mineMode) {
   const ev = getEvent(t.eventId);
+  const isOwner = t.owner === me;
   const dlClass = deadlineClass(t.deadline, t.status);
   const alertHtml = alertBadgeHTML(t.deadline, t.status);
-  const helpers = t.helpers?.length ? t.helpers.join(', ') : '—';
   const nextStatus = getNextStatus(t.status);
+  const helpers = t.helpers?.length ? t.helpers.join(', ') : '';
+  const ownerLine = mineMode
+    ? (isOwner ? '<strong>Chủ trì (bạn)</strong>' : `Chủ trì: ${t.owner}`)
+    : `Chủ trì: <strong>${t.owner}</strong>`;
   return `
-    <div class="task-card ${dlClass}" data-id="${t.id}">
-      ${alertHtml}
-      <div class="task-phase">${t.phase} · ${ev?.name || ''}</div>
-      <span class="task-ban ${banClass(t.ban)}">${t.ban}</span>
-      <div class="task-desc">${t.desc}</div>
-      <div class="task-meta">
-        <strong>${t.owner}</strong> · PH: ${helpers}
-        ${t.role === 'CHÍNH' ? ' · <em>CHÍNH</em>' : ''}
+    <div class="my-task-item ${isOwner && mineMode ? 'chinh' : ''} ${dlClass}" data-id="${t.id}">
+      <div class="task-main">
+        ${alertHtml}
+        <div class="task-phase">${t.phase} · ${ev?.name || ''} · ${t.ban}</div>
+        <div class="task-desc" style="margin:0.35rem 0">${t.desc}</div>
+        <div class="task-meta">
+          ${ownerLine}${helpers ? ` · PH: ${helpers}` : ''}
+        </div>
+        <div class="task-deadline ${dlClass}">Hạn: ${formatDeadline(t.deadline)}</div>
+        ${countdownHTML(t.deadline, t.status, t.id)}
       </div>
-      <div class="task-deadline ${dlClass}">Hạn: ${formatDeadline(t.deadline)}</div>
-      ${countdownHTML(t.deadline, t.status, t.id)}
-      <div class="task-actions">
-        ${nextStatus ? `<button class="btn btn-sm btn-secondary" data-action="next">→ ${STATUS_LABELS[nextStatus]}</button>` : ''}
-        <button class="btn btn-sm btn-ghost" data-action="delete" title="Chuyển vào thùng rác">🗑</button>
+      <div class="task-side">
+        <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status]}</span>
+        <div class="task-actions">
+          ${nextStatus ? `<button class="btn btn-sm btn-secondary" data-action="next">→ ${STATUS_LABELS[nextStatus]}</button>` : ''}
+          <button class="btn btn-sm btn-ghost" data-action="delete" title="Chuyển vào thùng rác">🗑</button>
+        </div>
       </div>
     </div>`;
 }
@@ -463,62 +548,20 @@ function renderTrash() {
   });
 }
 
-function renderMyTasks() {
-  const name = $('#my-name').value;
-  const container = $('#my-tasks');
-  if (!name) {
-    container.innerHTML = '<div class="empty-state">Chọn <strong>Tôi là</strong> ở góc trên header</div>';
-    return;
-  }
-
-  const mine = getFilteredTasks().sort((a, b) => a.deadline.localeCompare(b.deadline));
-
-  if (!mine.length) {
-    container.innerHTML = '<div class="empty-state">Không có việc nào được giao cho bạn</div>';
-    return;
-  }
-
-  container.innerHTML = mine.map(t => {
-    const ev = getEvent(t.eventId);
-    const isOwner = t.owner === name;
-    const dlClass = deadlineClass(t.deadline, t.status);
-    const alertHtml = alertBadgeHTML(t.deadline, t.status);
-    return `
-      <div class="my-task-item ${isOwner ? 'chinh' : ''} ${dlClass}" data-id="${t.id}">
-        <div>
-          ${alertHtml}
-          <div class="task-phase">${t.phase} · ${ev?.name || ''} · ${t.ban}</div>
-          <div class="task-desc" style="margin:0.35rem 0">${t.desc}</div>
-          <div class="task-meta">
-            ${isOwner ? '<strong>Chủ trì (bạn)</strong>' : `Chủ trì: ${t.owner}`}
-            ${t.helpers?.length ? ` · Phối hợp: ${t.helpers.join(', ')}` : ''}
-          </div>
-          <div class="task-deadline ${dlClass}">Hạn: ${formatDeadline(t.deadline)}</div>
-          ${countdownHTML(t.deadline, t.status, t.id)}
-        </div>
-        <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status]}</span>
-      </div>`;
-  }).join('');
-
-  container.querySelectorAll('.my-task-item').forEach(item => {
-    item.addEventListener('click', () => openModal(item.dataset.id));
-  });
-}
-
 function eventCardHTML(ev, isPast = false) {
   const evTasks = getActiveTasks().filter(t => t.eventId === ev.id);
   const isOpen = !!eventOpenState[ev.id];
   const rows = evTasks.length ? evTasks.map(t => `
       <div class="event-task-row" data-task-id="${t.id}">
-        <span>${t.phase}</span>
-        <span>${t.desc}</span>
-        <span>${t.owner}</span>
-        <span>${t.helpers?.join(', ') || '—'}</span>
-        <span class="deadline-cell">
+        <span data-label="Nhịp">${t.phase}</span>
+        <span data-label="Đầu việc">${t.desc}</span>
+        <span data-label="Chủ trì">${t.owner}</span>
+        <span data-label="Phối hợp">${t.helpers?.join(', ') || '—'}</span>
+        <span class="deadline-cell" data-label="Hạn">
           <span>${formatDeadline(t.deadline)}</span>
           ${countdownHTML(t.deadline, t.status, t.id)}
         </span>
-        <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status]}</span>
+        <span class="status-badge status-${t.status}" data-label="Trạng thái">${STATUS_LABELS[t.status]}</span>
       </div>`).join('') : '<p class="event-empty-tasks">Chưa có đầu việc</p>';
 
   return `
@@ -595,7 +638,10 @@ function renderEvents() {
   });
 
   container.querySelectorAll('.event-task-row[data-task-id]').forEach((row) => {
-    row.addEventListener('click', () => openModal(row.dataset.taskId));
+    row.addEventListener('click', () => {
+      if (!isAdminActive()) return; // chỉ admin mới sửa việc
+      openModal(row.dataset.taskId);
+    });
   });
 }
 
@@ -634,8 +680,8 @@ function openModal(id = null, presetEventId = null) {
     $('#task-deadline').value = date;
     $('#task-deadline-time').value = time;
     $('#task-status').value = t.status;
-    Array.from($('#task-helper').options).forEach(opt => {
-      opt.selected = t.helpers?.includes(opt.value) || false;
+    $('#task-helper').querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.checked = t.helpers?.includes(cb.value) || false;
     });
   } else {
     $('#modal-title').textContent = 'Thêm việc mới';
@@ -695,7 +741,7 @@ async function saveEvent(e) {
 
 async function saveTask(e) {
   e.preventDefault();
-  const helpers = Array.from($('#task-helper').selectedOptions).map(o => o.value);
+  const helpers = Array.from($('#task-helper').querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
 
   const data = {
     eventId: $('#task-event').value,
@@ -862,6 +908,7 @@ async function unlockTelegramAdmin() {
 }
 
 async function sendMemberReminder() {
+  if (!isAdminActive()) return;
   const name = $('#my-name').value;
   if (!name || !useServer) return;
   if (!confirm(`Gửi danh sách việc đang mở qua Telegram cho ${name}?`)) return;

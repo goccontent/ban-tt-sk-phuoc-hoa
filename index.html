@@ -69,8 +69,7 @@
       </div>
 
       <div id="work-board">
-        <div class="kanban" id="kanban-board"></div>
-        <div id="my-tasks" class="my-tasks-list" hidden></div>
+        <div id="my-tasks" class="my-tasks-list"></div>
       </div>
 
       <details class="trash-panel" id="trash-panel">
@@ -194,8 +193,8 @@
 
         <div class="form-group">
           <label>Phối hợp</label>
-          <select id="task-helper" multiple size="3"></select>
-          <span class="label-hint">Giữ Ctrl để chọn nhiều</span>
+          <div id="task-helper" class="checkbox-group" role="group" aria-label="Người phối hợp"></div>
+          <span class="label-hint">Chạm để chọn một hoặc nhiều người</span>
         </div>
 
         <div class="form-group">

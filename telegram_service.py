@@ -164,23 +164,6 @@ def build_reminder_message(name, task_list, now=None, all_open=False):
     return "\n".join(lines)
 
 
-def get_reminders_for_user(name, tasks=None, days_ahead=3, now=None):
-    if now is None:
-        now = datetime.now()
-    if tasks is None:
-        tasks = load_tasks()
-    result = []
-    for t in tasks:
-        if t.get("status") == "da-dang":
-            continue
-        if t.get("owner") != name:
-            continue
-        level, _ = deadline_alert_level(t["deadline"], now)
-        if level:
-            result.append(t)
-    return result
-
-
 def get_member_tasks(name, tasks=None, alerts_only=False, now=None):
     """Việc của thành viên (chủ trì hoặc phối hợp)."""
     if now is None:
@@ -250,13 +233,12 @@ def send_reminder_to_user(name, alerts_only=False, dry_run=False):
     }
 
 
-def send_reminders(token=None, days_ahead=None, dry_run=False):
+def send_reminders(token=None, dry_run=False):
     cfg = load_config()
     token = token or cfg.get("bot_token")
     if not token:
         return {"ok": False, "error": "Chưa cấu hình bot_token", "sent": []}
 
-    days_ahead = days_ahead if days_ahead is not None else cfg.get("reminder_days_ahead", 3)
     users = load_users()
     tasks = load_tasks()
     now = datetime.now()
@@ -264,7 +246,8 @@ def send_reminders(token=None, days_ahead=None, dry_run=False):
     errors = []
 
     for name, chat_id in users.items():
-        reminders = get_reminders_for_user(name, tasks, days_ahead, now)
+        # Nhắc cả việc Chủ trì lẫn Phối hợp (chỉ những việc đến/quá hạn)
+        reminders = get_member_tasks(name, tasks, alerts_only=True, now=now)
         if not reminders:
             continue
         msg = build_reminder_message(name, reminders, now)
@@ -328,10 +311,11 @@ def handle_update(update, token=None):
     if text.startswith("/start"):
         parts = text.split(maxsplit=1)
         if len(parts) < 2:
+            valid_names = ', '.join(load_members())
             help_text = (
                 "👋 <b>Ban TT-SK · Bot nhắc việc</b>\n\n"
                 "Đăng ký: <code>/start Tên của bạn</code>\n"
-                f"Tên hợp lệ: {', '.join(MEMBER_NAMES)}\n\n"
+                f"Tên hợp lệ: {valid_names}\n\n"
                 "VD: <code>/start Khánh Huyền</code>"
             )
             send_message(token, chat_id, help_text)
@@ -346,11 +330,11 @@ def handle_update(update, token=None):
         if not name:
             send_message(token, chat_id, "Chưa đăng ký. Gõ: /start Tên của bạn")
             return
-        reminders = get_reminders_for_user(name, days_ahead=7)
+        reminders = get_member_tasks(name, alerts_only=False)
         if not reminders:
-            send_message(token, chat_id, f"Không có việc sắp tới, {name}!")
+            send_message(token, chat_id, f"Không có việc đang mở, {name}!")
             return
-        send_message(token, chat_id, build_reminder_message(name, reminders))
+        send_message(token, chat_id, build_reminder_message(name, reminders, all_open=True))
 
     elif text.startswith("/help"):
         send_message(token, chat_id,

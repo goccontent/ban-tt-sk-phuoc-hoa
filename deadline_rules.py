@@ -10,37 +10,65 @@ SAU_HOURS_AFTER = 24
 SOON_HOURS = 48
 
 
-def parse_event_date_iso(date_str):
-    """Lấy ngày đầu từ chuỗi hiển thị: 28.06.2026 hoặc 03.06–03.07.2026."""
+def parse_event_date_range(date_str):
+    """
+    Tách dải ngày từ chuỗi hiển thị, trả về (start, end) — đồng bộ với
+    parseDateRangeFromDisplay() trong data.js.
+      28.06.2026          -> start = end = 28.06.2026
+      03–05.06.2026       -> start 03.06, end 05.06 (cùng tháng)
+      03.06–03.07.2026    -> start 03.06, end 03.07 (khác tháng)
+    """
     if not date_str:
         return None
-    m = re.search(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", str(date_str))
-    if not m:
-        return None
-    d, mo, y = m.groups()
-    return date(int(y), int(mo), int(d))
+    s = re.sub(r"\s", "", str(date_str))
+
+    m = re.match(r"^(\d{1,2})[–\-](\d{1,2})\.(\d{1,2})\.(\d{4})$", s)
+    if m:
+        d1, d2, mo, y = (int(x) for x in m.groups())
+        return date(y, mo, d1), date(y, mo, d2)
+
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})[–\-](\d{1,2})\.(\d{1,2})\.(\d{4})$", s)
+    if m:
+        d1, mo1, d2, mo2, y = (int(x) for x in m.groups())
+        return date(y, mo1, d1), date(y, mo2, d2)
+
+    m = re.match(r"^(\d{1,2})\.(\d{1,2})\.(\d{4})$", s)
+    if m:
+        d, mo, y = (int(x) for x in m.groups())
+        return date(y, mo, d), date(y, mo, d)
+    return None
 
 
-def calc_deadline_for_phase(event_date_iso, phase):
+def parse_event_date_iso(date_str):
+    """Lấy ngày đầu (bắt đầu) từ chuỗi hiển thị: 28.06.2026 hoặc 03.06–03.07.2026."""
+    rng = parse_event_date_range(date_str)
+    return rng[0] if rng else None
+
+
+def calc_deadline_for_phase(event_date_iso, phase, event_end_iso=None):
     """
-    Trước: 2 ngày trước sự kiện, 08:00
-    Trong: ngày sự kiện, 17:30
-    Sau: +24h sau 18:00 ngày sự kiện
+    Trước: 2 ngày trước ngày bắt đầu, 08:00
+    Trong: ngày bắt đầu, 17:30
+    Sau: +24h sau 18:00 NGÀY KẾT THÚC (event_end_iso); nếu không truyền thì
+         dùng ngày bắt đầu. Đồng bộ với calcDeadlineForPhase() trong data.js.
     """
-    if isinstance(event_date_iso, str):
-        ev = datetime.strptime(event_date_iso[:10], "%Y-%m-%d").date()
-    else:
-        ev = event_date_iso
+    def _to_date(value):
+        if isinstance(value, str):
+            return datetime.strptime(value[:10], "%Y-%m-%d").date()
+        return value
+
+    start = _to_date(event_date_iso)
+    end = _to_date(event_end_iso) if event_end_iso else start
 
     if phase == "Trước":
-        d = ev - timedelta(days=TRUOC_DAYS_BEFORE)
+        d = start - timedelta(days=TRUOC_DAYS_BEFORE)
         return datetime(d.year, d.month, d.day, *TRUOC_TIME)
     if phase == "Trong":
-        return datetime(ev.year, ev.month, ev.day, *TRONG_TIME)
+        return datetime(start.year, start.month, start.day, *TRONG_TIME)
     if phase == "Sau":
-        end = datetime(ev.year, ev.month, ev.day, *EVENT_END_TIME)
-        return end + timedelta(hours=SAU_HOURS_AFTER)
-    return datetime(ev.year, ev.month, ev.day, *TRUOC_TIME)
+        end_dt = datetime(end.year, end.month, end.day, *EVENT_END_TIME)
+        return end_dt + timedelta(hours=SAU_HOURS_AFTER)
+    return datetime(start.year, start.month, start.day, *TRUOC_TIME)
 
 
 def deadline_to_iso(dt):
