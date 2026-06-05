@@ -1,0 +1,7 @@
+{
+  "bot_token": "ĐIỀN_TOKEN_TỪ_@BotFather",
+  "group_chat_id": "",
+  "reminder_hour": 7,
+  "reminder_days_ahead": 3,
+  "enabled": true
+}

@@ -1,0 +1,28 @@
+{
+  "importedAt": "2026-06-05T11:30:11.515609",
+  "fromDate": "2026-06-05",
+  "count": 27,
+  "totalTasks": 27,
+  "events": [
+    {
+      "id": "he-2026",
+      "name": "Chương trình Hè 2026",
+      "date": "03.06–03.07.2026"
+    },
+    {
+      "id": "khoa-huan-luyen",
+      "name": "Khóa Bồi dưỡng TT-CG (06.06)",
+      "date": "06.06.2026"
+    },
+    {
+      "id": "ruoc-le-lan-dau",
+      "name": "Lãnh nhận Bí Tích Rước Lễ Lần Đầu",
+      "date": "25–28.06.2026"
+    },
+    {
+      "id": "them-suc",
+      "name": "Lãnh nhận Bí Tích Thêm Sức",
+      "date": "04–07.07.2026"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+telegram_config.json
+telegram_users.json
+.reminder-*
+pdf_raw.txt

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ban TT-SK · Lập kế hoạch & Phân việc</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header">
+    <div class="header-brand">
+      <div class="logo">✦</div>
+      <div>
+        <h1>Ban Truyền Thông & Sự Kiện</h1>
+        <p class="subtitle">Giáo xứ Phước Hòa · Xứ đoàn Tôma Thiện</p>
+      </div>
+    </div>
+    <p class="motto">"Anh em là ánh sáng thế gian" (Mt 5,14)</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="all">Cả ban</button>
+    <button class="tab" data-tab="mine">Việc của tôi</button>
+    <button class="tab" data-tab="events">Sự kiện</button>
+    <button class="tab" data-tab="bot">Bot nhắc</button>
+  </nav>
+
+  <main class="main">
+    <!-- TAB: CẢ BAN -->
+    <section id="tab-all" class="tab-panel active">
+      <div id="alert-banner" class="alert-banner" role="alert"></div>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select id="filter-ban">
+            <option value="">Tất cả ban</option>
+            <option value="Nội dung">Nội dung</option>
+            <option value="Kỹ thuật">Kỹ thuật</option>
+            <option value="Quản trị">Quản trị</option>
+          </select>
+          <select id="filter-event">
+            <option value="">Tất cả sự kiện</option>
+          </select>
+        </div>
+        <input type="file" id="excel-file" accept=".xlsx,.xlsm" hidden>
+        <button class="btn btn-secondary" id="btn-import-excel" title="Import sự kiện từ file Excel">📥 Import Excel</button>
+        <a class="btn btn-ghost btn-sm" href="mau-ke-hoach-su-kien.xlsx" download>Mẫu Excel</a>
+        <button class="btn btn-primary" id="btn-add-task">+ Thêm việc</button>
+      </div>
+      <div class="kanban" id="kanban-board"></div>
+    </section>
+
+    <!-- TAB: VIỆC CỦA TÔI -->
+    <section id="tab-mine" class="tab-panel">
+      <div class="mine-header">
+        <label>Tôi là:
+          <select id="my-name">
+            <option value="">— Chọn tên —</option>
+          </select>
+        </label>
+        <p class="hint">Lọc cột Chủ trì = tên mình → thấy ngay việc của mình</p>
+      </div>
+      <div id="my-tasks" class="my-tasks-list"></div>
+    </section>
+
+    <!-- TAB: SỰ KIỆN -->
+    <section id="tab-events" class="tab-panel">
+      <div class="events-intro">
+        <h2>Khung lập kế hoạch — 5 bước</h2>
+        <ol class="steps">
+          <li><strong>Bóc sự kiện thành đầu việc</strong> — Trước / Trong / Sau, mỗi việc một dòng</li>
+          <li><strong>Mô tả theo công thức</strong> — Động từ + Sản phẩm cụ thể + Nơi đăng</li>
+          <li><strong>Giao việc rõ</strong> — 1 Chủ trì (tên người) + Phối hợp</li>
+          <li><strong>Đặt hạn</strong> — Có ngày + giờ: <em>Trước</em> = 2 ngày trước SK (08:00); <em>Sau</em> = trong 24h sau SK</li>
+          <li><strong>Theo dõi</strong> — Trạng thái 4 nấc + nhắc định kỳ</li>
+        </ol>
+      </div>
+      <div id="events-list" class="events-list"></div>
+    </section>
+
+    <!-- TAB: BOT NHẮC -->
+    <section id="tab-bot" class="tab-panel">
+      <div class="bot-intro">
+        <div class="bot-card">
+          <h3>Bảng để THẤY</h3>
+          <p>Cả ban cùng nhìn ở Kanban — liếc là biết ai làm gì, tới đâu.</p>
+        </div>
+        <div class="bot-card highlight">
+          <h3>Bot Telegram để NHẮC</h3>
+          <p>Mỗi sáng gửi riêng từng người danh sách việc + hạn. Sheet → Script → Bot.</p>
+        </div>
+      </div>
+
+      <div class="telegram-setup" id="telegram-setup">
+        <h3>Cấu hình Telegram</h3>
+        <div class="tg-form">
+          <div class="form-group">
+            <label>Bot Token <span class="label-hint">(từ @BotFather)</span></label>
+            <input type="password" id="tg-token" placeholder="123456:ABC-DEF...">
+          </div>
+          <div class="form-group">
+            <label>Group Chat ID <span class="label-hint">(nhóm ban, tùy chọn)</span></label>
+            <input type="text" id="tg-group" placeholder="-1001234567890">
+          </div>
+          <div class="form-group">
+            <label>Giờ nhắc sáng</label>
+            <input type="number" id="tg-hour" min="0" max="23" value="7">
+          </div>
+          <label class="checkbox-label">
+            <input type="checkbox" id="tg-enabled"> Bật bot Telegram
+          </label>
+        </div>
+        <div class="tg-actions">
+          <button class="btn btn-secondary" id="btn-tg-save">Lưu cấu hình</button>
+          <button class="btn btn-secondary" id="btn-tg-test">Kiểm tra bot</button>
+          <button class="btn btn-secondary" id="btn-tg-webhook">Kết nối Webhook</button>
+          <button class="btn btn-primary" id="btn-tg-send">Gửi nhắc ngay</button>
+          <button class="btn btn-ghost" id="btn-simulate-bot">Xem trước (không gửi)</button>
+        </div>
+        <p class="hint tg-hint" id="tg-deploy-hint"></p>
+        <p class="hint tg-hint">
+          Thành viên nhắn bot: <code>/start Tên</code> — VD: <code>/start Khánh Huyền</code>
+          · <code>/viectoi</code> xem việc
+        </p>
+        <div id="tg-status" class="tg-status"></div>
+        <div id="tg-users" class="tg-users"></div>
+      </div>
+
+      <div id="bot-messages" class="bot-messages"></div>
+    </section>
+  </main>
+
+  <!-- MODAL: THÊM/SỬA VIỆC -->
+  <dialog id="task-modal" class="modal">
+    <form id="task-form" class="modal-content">
+      <header class="modal-header">
+        <h2 id="modal-title">Thêm việc mới</h2>
+        <button type="button" class="btn-close" id="btn-close-modal">&times;</button>
+      </header>
+
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Sự kiện / Chương trình</label>
+          <select id="task-event" required></select>
+        </div>
+
+        <div class="form-group">
+          <label>Nhịp</label>
+          <select id="task-phase" required>
+            <option value="Trước">Trước</option>
+            <option value="Trong">Trong</option>
+            <option value="Sau">Sau</option>
+          </select>
+          <span class="label-hint" id="phase-rule-hint"></span>
+        </div>
+
+        <div class="form-group">
+          <label>Vai (Ban)</label>
+          <select id="task-ban" required>
+            <option value="Nội dung">Nội dung</option>
+            <option value="Kỹ thuật">Kỹ thuật</option>
+            <option value="Quản trị">Quản trị</option>
+          </select>
+        </div>
+
+        <div class="form-group full">
+          <label>Đầu việc <span class="label-hint">(Động từ + sản phẩm + nơi đăng)</span></label>
+          <textarea id="task-desc" rows="3" required placeholder="VD: Viết bài tường thuật + 8 ảnh, đăng FB"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Chủ trì <span class="label-hint">(đúng 1 tên)</span></label>
+          <select id="task-owner" required></select>
+        </div>
+
+        <div class="form-group">
+          <label>Phối hợp</label>
+          <select id="task-helper" multiple size="3"></select>
+          <span class="label-hint">Giữ Ctrl để chọn nhiều</span>
+        </div>
+
+        <div class="form-group">
+          <label>Vai trò</label>
+          <select id="task-role">
+            <option value="CHÍNH">CHÍNH</option>
+            <option value="PHỤ">PHỤ</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Deadline — ngày</label>
+          <input type="date" id="task-deadline" required>
+        </div>
+
+        <div class="form-group">
+          <label>Giờ hoàn thành</label>
+          <input type="time" id="task-deadline-time" value="08:00" required>
+        </div>
+
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <select id="task-status">
+            <option value="chua-lam">Chưa làm</option>
+            <option value="dang-lam">Đang làm</option>
+            <option value="cho-duyet">Chờ duyệt</option>
+            <option value="da-dang">Đã xong</option>
+          </select>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="btn-cancel">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

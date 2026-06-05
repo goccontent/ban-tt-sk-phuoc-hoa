@@ -1,0 +1,410 @@
+[
+  {
+    "id": "imp19e960bba3524d7",
+    "eventId": "he-2026",
+    "phase": "Trong",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video việc Hè: GL+TL 2 lớp RL/TS, Vào Hè Với Chúa Giêsu, Khóa KN TĐĐT, dã ngoại LS, Trại HL TNTT — FB/TikTok",
+    "owner": "Khánh Huyền",
+    "helpers": [
+      "Kiều Duyên"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-03",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3510d5",
+    "eventId": "he-2026",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Quay, chụp các chương trình Hè — điện thoại",
+    "owner": "Minh",
+    "helpers": [
+      "CTV A",
+      "CTV B"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-03",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35f6d",
+    "eventId": "he-2026",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Lọc hình ảnh chương trình Hè — upload Drive",
+    "owner": "Minh",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-07-03",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351459",
+    "eventId": "he-2026",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Phân công, kết hợp KT+ND chuẩn bị vật dụng cho chương trình Hè",
+    "owner": "Trọng",
+    "helpers": [
+      "Gioakim"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-10",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351f6b",
+    "eventId": "khoa-huan-luyen",
+    "phase": "Trước",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video thông báo Khóa Bồi dưỡng TT-CG 06.06 — FB/TikTok",
+    "owner": "Khánh Huyền",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-05",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba356ec",
+    "eventId": "khoa-huan-luyen",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Quay, chụp Khóa Bồi dưỡng TT-CG tại GX Phước Hòa",
+    "owner": "Minh",
+    "helpers": [
+      "CTV C"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-06",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351c05",
+    "eventId": "khoa-huan-luyen",
+    "phase": "Sau",
+    "ban": "Nội dung",
+    "desc": "Viết bài tường thuật Khóa Bồi dưỡng + ảnh, đăng FB",
+    "owner": "Khánh Huyền",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-07",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351044",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trước",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video thông báo chuẩn bị Thánh Lễ Lãnh nhận Bí Tích Rước Lễ Lần Đầu — FB/TikTok",
+    "owner": "Khánh Huyền",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-25",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35bbf",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trong",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video Lãnh nhận Bí Tích Xưng Tội Lần Đầu — lớp Rước Lễ",
+    "owner": "Khánh Huyền",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-27",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35fa2",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trong",
+    "ban": "Quản trị",
+    "desc": "Điều phối chương trình Xưng Tội Rước Lễ — kết hợp Ban Kỹ thuật",
+    "owner": "Trọng",
+    "helpers": [
+      "Gioakim"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-26",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba352577",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Chuẩn bị tòa Giải Tội Xưng Tội RL — kết hợp HT-GLV lớp RL",
+    "owner": "Trọng",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-26",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351c4a",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Quay, chụp Chương trình Xưng Tội Rước Lễ — điện thoại",
+    "owner": "Minh",
+    "helpers": [
+      "CTV A"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-26",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3525ec",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Họp chuẩn bị truyền thông Thánh Lễ Rước Lễ Lần Đầu",
+    "owner": "Gioakim",
+    "helpers": [
+      "Trọng"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-26",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351f1c",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trong",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video Thánh Lễ Lãnh nhận Bí Tích Rước Lễ Lần Đầu — FB/TikTok",
+    "owner": "Khánh Huyền",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-29",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3513e6",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trong",
+    "ban": "Quản trị",
+    "desc": "Điều phối Thánh Lễ Rước Lễ — kết hợp PB Huấn Luyện + KT",
+    "owner": "Trọng",
+    "helpers": [
+      "Gioakim"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-28",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba351caa",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Quay, chụp Thánh Lễ Rước Lễ Lần Đầu",
+    "owner": "Minh",
+    "helpers": [
+      "CTV B",
+      "CTV C"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-06-28",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35192",
+    "eventId": "ruoc-le-lan-dau",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Chuẩn bị vật dụng Thánh Lễ Rước Lễ — kết hợp HT-GLV lớp RL",
+    "owner": "Trọng",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-06-28",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35cb1",
+    "eventId": "them-suc",
+    "phase": "Trước",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video thông báo chuẩn bị Thánh Lễ Lãnh nhận Bí Tích Thêm Sức — FB/TikTok",
+    "owner": "Kiều Duyên",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-07-04",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35737",
+    "eventId": "them-suc",
+    "phase": "Trong",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video Xưng Tội chuẩn bị Thêm Sức — lớp Thêm Sức",
+    "owner": "Kiều Duyên",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-07-06",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35d2e",
+    "eventId": "them-suc",
+    "phase": "Trong",
+    "ban": "Quản trị",
+    "desc": "Điều phối Chương trình Xưng Tội Thêm Sức — kết hợp Ban KT",
+    "owner": "Trọng",
+    "helpers": [
+      "Gioakim"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-05",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35a27",
+    "eventId": "them-suc",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Chuẩn bị tòa Giải Tội Thêm Sức — kết hợp HT-GLV lớp TS",
+    "owner": "Trọng",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-07-05",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35b6b",
+    "eventId": "them-suc",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Quay, chụp Xưng Tội Thêm Sức",
+    "owner": "Minh",
+    "helpers": [
+      "CTV A"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-05",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3517ab",
+    "eventId": "them-suc",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Họp chuẩn bị truyền thông Thánh Lễ Thêm Sức",
+    "owner": "Gioakim",
+    "helpers": [
+      "Trọng"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-05",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3514f5",
+    "eventId": "them-suc",
+    "phase": "Trong",
+    "ban": "Nội dung",
+    "desc": "Đăng ảnh/video Thánh Lễ Lãnh nhận Bí Tích Thêm Sức — FB/TikTok",
+    "owner": "Kiều Duyên",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-07-08",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba35246a",
+    "eventId": "them-suc",
+    "phase": "Trong",
+    "ban": "Quản trị",
+    "desc": "Điều phối Thánh Lễ Thêm Sức — kết hợp PB Huấn Luyện + KT",
+    "owner": "Trọng",
+    "helpers": [
+      "Gioakim"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-07",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3598e",
+    "eventId": "them-suc",
+    "phase": "Trong",
+    "ban": "Kỹ thuật",
+    "desc": "Quay, chụp Thánh Lễ Thêm Sức",
+    "owner": "Minh",
+    "helpers": [
+      "CTV B"
+    ],
+    "role": "CHÍNH",
+    "deadline": "2026-07-07",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  },
+  {
+    "id": "imp19e960bba3515ee",
+    "eventId": "them-suc",
+    "phase": "Trước",
+    "ban": "Quản trị",
+    "desc": "Chuẩn bị vật dụng Thánh Lễ Thêm Sức",
+    "owner": "Trọng",
+    "helpers": [],
+    "role": "CHÍNH",
+    "deadline": "2026-07-07",
+    "status": "chua-lam",
+    "imported": true,
+    "source": "pdf-ke-hoach"
+  }
+]
