@@ -96,12 +96,67 @@ const PHASE_RULES = {
   'Sau': 'Trong 24h sau sự kiện (từ 18:00)'
 };
 
+function parseDateRangeFromDisplay(dateStr) {
+  const s = (dateStr || '').replace(/\s/g, '');
+  let m = s.match(/^(\d{1,2})[–\-](\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) {
+    const [, d1, d2, mo, y] = m;
+    return {
+      startISO: `${y}-${mo.padStart(2, '0')}-${d1.padStart(2, '0')}`,
+      endISO: `${y}-${mo.padStart(2, '0')}-${d2.padStart(2, '0')}`,
+    };
+  }
+  m = s.match(/^(\d{1,2})\.(\d{1,2})[–\-](\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) {
+    const [, d1, mo1, d2, mo2, y] = m;
+    return {
+      startISO: `${y}-${mo1.padStart(2, '0')}-${d1.padStart(2, '0')}`,
+      endISO: `${y}-${mo2.padStart(2, '0')}-${d2.padStart(2, '0')}`,
+    };
+  }
+  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) {
+    const [, d, mo, y] = m;
+    const iso = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    return { startISO: iso, endISO: iso };
+  }
+  return null;
+}
+
+function parseEventDateRange(event) {
+  if (!event) return null;
+  if (event.eventDate) {
+    const endISO = event.eventDate.slice(0, 10);
+    let startISO = endISO;
+    if (event.eventStartDate) {
+      startISO = event.eventStartDate.slice(0, 10);
+    } else {
+      const parsed = parseDateRangeFromDisplay(event.date);
+      if (parsed) startISO = parsed.startISO;
+    }
+    return { startISO, endISO };
+  }
+  return parseDateRangeFromDisplay(event.date);
+}
+
 function parseEventDateISO(event) {
-  if (event?.eventDate) return event.eventDate.slice(0, 10);
-  const m = (event?.date || '').match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
-  if (!m) return null;
-  const [, d, mo, y] = m;
-  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  const range = parseEventDateRange(event);
+  return range ? range.startISO : null;
+}
+
+function classifyEvents(eventList) {
+  const today = todayISO();
+  const upcoming = [];
+  const past = [];
+  for (const ev of eventList) {
+    const range = parseEventDateRange(ev) || { startISO: '9999-12-31', endISO: '9999-12-31' };
+    const item = { ...ev, _range: range };
+    if (range.endISO < today) past.push(item);
+    else upcoming.push(item);
+  }
+  upcoming.sort((a, b) => a._range.startISO.localeCompare(b._range.startISO));
+  past.sort((a, b) => b._range.endISO.localeCompare(a._range.endISO));
+  return { upcoming, past };
 }
 
 function calcDeadlineForPhase(eventId, phase) {

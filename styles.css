@@ -374,29 +374,138 @@ select, input, textarea {
 .steps { padding-left: 1.25rem; }
 .steps li { margin-bottom: 0.5rem; font-size: 0.9rem; }
 
-.event-card {
+.events-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.events-section {
   background: var(--surface);
   border-radius: var(--radius);
-  margin-bottom: 1rem;
   box-shadow: var(--shadow);
   overflow: hidden;
 }
 
-.event-header {
+.events-section-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: none;
   background: var(--primary);
   color: white;
-  padding: 1rem 1.25rem;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.events-section-header:hover { background: var(--primary-light); }
+
+.events-section-count {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.15rem 0.55rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+}
+
+.events-section-body {
+  padding: 0.75rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
-.event-header h3 { font-size: 1rem; }
-.event-date { font-size: 0.85rem; opacity: 0.9; }
+.events-section-empty {
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
 
-.event-tasks { padding: 1rem 1.25rem; }
+.event-accordion {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.event-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  background: var(--surface);
+}
+
+.event-accordion-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+
+.event-accordion-toggle:hover { color: var(--primary); }
+
+.event-accordion-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-date-badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.event-task-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--accent-soft);
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.event-chevron {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.events-section.open .events-section-header .event-chevron,
+.event-accordion.open .event-chevron {
+  transform: rotate(90deg);
+}
+
+.event-accordion-body { border-top: 1px solid var(--border); }
+
+.event-empty-tasks {
+  padding: 0.75rem 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.btn-add-event-task { flex-shrink: 0; margin-right: 0.5rem; }
+
+.event-tasks { padding: 0.75rem 1rem 1rem; }
+
+.event-task-row[data-task-id] { cursor: pointer; }
+.event-task-row[data-task-id]:hover { background: var(--accent-soft); }
 
 .event-task-row {
   display: grid;

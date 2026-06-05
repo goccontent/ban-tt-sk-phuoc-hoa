@@ -2,6 +2,8 @@ let tasks = [];
 let editingId = null;
 let countdownTimer = null;
 const ADMIN_SESSION_KEY = 'ban-tt-sk-admin-pin';
+let eventSectionState = { upcoming: true, past: false };
+let eventOpenState = {};
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -322,12 +324,11 @@ function renderMyTasks() {
   });
 }
 
-function renderEvents() {
-  const container = $('#events-list');
-  container.innerHTML = EVENTS.map(ev => {
-    const evTasks = tasks.filter(t => t.eventId === ev.id);
-    const rows = evTasks.length ? evTasks.map(t => `
-      <div class="event-task-row">
+function eventCardHTML(ev) {
+  const evTasks = tasks.filter(t => t.eventId === ev.id);
+  const isOpen = !!eventOpenState[ev.id];
+  const rows = evTasks.length ? evTasks.map(t => `
+      <div class="event-task-row" data-task-id="${t.id}">
         <span>${t.phase}</span>
         <span>${t.desc}</span>
         <span>${t.owner}</span>
@@ -337,22 +338,82 @@ function renderEvents() {
           ${countdownHTML(t.deadline, t.status, t.id)}
         </span>
         <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status]}</span>
-      </div>`).join('') : '<p style="padding:0.5rem 0;color:var(--text-muted);font-size:0.85rem">Chưa có đầu việc — bấm Thêm việc</p>';
+      </div>`).join('') : '<p class="event-empty-tasks">Chưa có đầu việc</p>';
 
-    return `
-      <div class="event-card">
-        <div class="event-header">
-          <h3>${ev.name}</h3>
-          <span class="event-date">${ev.date}</span>
-        </div>
+  return `
+    <div class="event-accordion ${isOpen ? 'open' : ''}" data-event-id="${ev.id}">
+      <div class="event-accordion-header">
+        <button type="button" class="event-accordion-toggle" data-event-toggle="${ev.id}" aria-expanded="${isOpen}">
+          <span class="event-chevron" aria-hidden="true">▶</span>
+          <span class="event-accordion-title">${ev.name}</span>
+          <span class="event-date-badge">${ev.date}</span>
+          <span class="event-task-count">${evTasks.length} việc</span>
+        </button>
+        <button type="button" class="btn btn-sm btn-primary btn-add-event-task" data-add-event="${ev.id}">+ Thêm việc</button>
+      </div>
+      <div class="event-accordion-body" ${isOpen ? '' : 'hidden'}>
         <div class="event-tasks">
           <div class="event-task-row header">
             <span>Nhịp</span><span>Đầu việc</span><span>Chủ trì</span><span>Phối hợp</span><span>Hạn</span><span>TT</span>
           </div>
           ${rows}
         </div>
-      </div>`;
-  }).join('');
+      </div>
+    </div>`;
+}
+
+function eventsSectionHTML(key, title, list) {
+  const isOpen = !!eventSectionState[key];
+  const body = list.length
+    ? list.map(ev => eventCardHTML(ev)).join('')
+    : `<p class="events-section-empty">Không có sự kiện trong mục này</p>`;
+
+  return `
+    <div class="events-section ${isOpen ? 'open' : ''}" data-section="${key}">
+      <button type="button" class="events-section-header" data-section-toggle="${key}" aria-expanded="${isOpen}">
+        <span class="event-chevron" aria-hidden="true">▶</span>
+        <span class="events-section-title">${title}</span>
+        <span class="events-section-count">${list.length}</span>
+      </button>
+      <div class="events-section-body" ${isOpen ? '' : 'hidden'}>
+        ${body}
+      </div>
+    </div>`;
+}
+
+function renderEvents() {
+  const container = $('#events-list');
+  const { upcoming, past } = classifyEvents(EVENTS);
+  container.innerHTML =
+    eventsSectionHTML('upcoming', 'Sự kiện sắp tới', upcoming) +
+    eventsSectionHTML('past', 'Đã qua', past);
+
+  container.querySelectorAll('[data-section-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.sectionToggle;
+      eventSectionState[key] = !eventSectionState[key];
+      renderEvents();
+    });
+  });
+
+  container.querySelectorAll('[data-event-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.eventToggle;
+      eventOpenState[id] = !eventOpenState[id];
+      renderEvents();
+    });
+  });
+
+  container.querySelectorAll('.btn-add-event-task').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openModal(null, btn.dataset.addEvent);
+    });
+  });
+
+  container.querySelectorAll('.event-task-row[data-task-id]').forEach((row) => {
+    row.addEventListener('click', () => openModal(row.dataset.taskId));
+  });
 }
 
 function updatePhaseHint() {
@@ -372,7 +433,7 @@ function applyDeadlineFromPhase() {
   $('#task-deadline-time').value = time;
 }
 
-function openModal(id = null) {
+function openModal(id = null, presetEventId = null) {
   editingId = id;
   const modal = $('#task-modal');
 
@@ -398,6 +459,9 @@ function openModal(id = null) {
     $('#task-form').reset();
     $('#task-status').value = 'chua-lam';
     $('#task-deadline-time').value = '08:00';
+    if (presetEventId) {
+      $('#task-event').value = presetEventId;
+    }
     applyDeadlineFromPhase();
   }
 
