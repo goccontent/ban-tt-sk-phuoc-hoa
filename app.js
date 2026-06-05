@@ -419,7 +419,9 @@ function startOfWeekMonday(d) {
   return x;
 }
 
-// Gom việc theo tuần lịch — tự trôi khi thời gian qua đi
+// Gom việc theo thời gian — tự trôi khi thời gian qua đi.
+// "Tuần này / Tuần sau" theo tuần lịch (Thứ Hai); từ 2 tuần trở đi đếm theo
+// số NGÀY thực tế để khớp với đồng hồ trên thẻ (tránh lệch do hôm nay là cuối tuần).
 function taskTimeBucket(t, now) {
   if (t.status === 'da-dang') return { order: 6, label: '✅ Đã xong' };
   const dl = parseDeadlineDate(t.deadline);
@@ -427,9 +429,11 @@ function taskTimeBucket(t, now) {
   const wi = Math.round((startOfWeekMonday(dl) - startOfWeekMonday(now)) / (7 * 86400000));
   if (wi <= 0) return { order: 1, label: 'Tuần này' };
   if (wi === 1) return { order: 2, label: 'Tuần sau' };
-  if (wi === 2) return { order: 3, label: '2 tuần nữa' };
-  if (wi === 3) return { order: 4, label: '3 tuần nữa' };
-  return { order: 5, label: '1 tháng nữa' };
+  const days = Math.floor((dl - now) / 86400000);
+  let weeks = Math.round(days / 7);
+  if (weeks >= 4) return { order: 5, label: '1 tháng nữa' };
+  if (weeks < 2) weeks = 2; // đã qua "Tuần sau" thì tối thiểu là "2 tuần nữa"
+  return { order: weeks === 2 ? 3 : 4, label: `${weeks} tuần nữa` };
 }
 
 function renderTaskList() {

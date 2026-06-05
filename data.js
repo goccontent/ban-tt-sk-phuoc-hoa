@@ -406,6 +406,7 @@ function formatCountdown(deadline, status) {
   // dưới 24 giờ → chạy đồng hồ đếm ngược theo giây.
   if (day >= 14) {
     const weeks = Math.round(day / 7);
+    if (weeks >= 4) return { text: 'Còn khoảng 1 tháng nữa', overdue: false, done: false, live: false };
     return { text: `Còn ${weeks} tuần nữa`, overdue: false, done: false, live: false };
   }
   if (day >= 1) {
