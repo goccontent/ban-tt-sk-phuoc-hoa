@@ -4,8 +4,16 @@ Server phần mềm Ban TT-SK
 - Production: gunicorn wsgi:app (Render.com miễn phí)
 """
 import os
+import sys
 import threading
 import time
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except OSError:
+        pass
 from datetime import datetime
 from pathlib import Path
 
