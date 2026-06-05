@@ -4,6 +4,7 @@ let countdownTimer = null;
 const ADMIN_SESSION_KEY = 'ban-tt-sk-admin-pin';
 let eventSectionState = { upcoming: true, past: false };
 let eventOpenState = {};
+let kanbanColOpen = { 'chua-lam': true, 'dang-lam': true, 'cho-duyet': true, 'da-dang': true };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -46,8 +47,8 @@ function showServerBadge() {
 }
 
 function populateSelects() {
-  const eventOpts = EVENTS.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-  const filterEventOpts = EVENTS.map(e => `<option value="${e.id}">${e.name} — ${e.date}</option>`).join('');
+  const eventOpts = EVENTS.map(e => `<option value="${e.id}">${formatEventLabel(e)}</option>`).join('');
+  const filterEventOpts = EVENTS.map(e => `<option value="${e.id}">${formatEventLabel(e)}</option>`).join('');
   $('#task-event').innerHTML = eventOpts;
   $('#filter-event').innerHTML = '<option value="">Tất cả sự kiện</option>' + filterEventOpts;
 
@@ -72,6 +73,17 @@ function bindEvents() {
   });
 
   $('#btn-add-task').addEventListener('click', () => openModal());
+  $('#btn-add-event')?.addEventListener('click', openEventModal);
+  $('#btn-close-event-modal')?.addEventListener('click', closeEventModal);
+  $('#btn-cancel-event')?.addEventListener('click', closeEventModal);
+  $('#event-form')?.addEventListener('submit', saveEvent);
+  $('#event-date-input')?.addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v) {
+      const [y, mo, d] = v.split('-');
+      $('#event-date-display').value = `${d}.${mo}.${y}`;
+    }
+  });
   $('#btn-import-excel').addEventListener('click', () => $('#excel-file').click());
   $('#excel-file').addEventListener('change', (e) => {
     const file = e.target.files?.[0];
@@ -203,15 +215,29 @@ function renderKanban() {
   const board = $('#kanban-board');
   board.innerHTML = statuses.map(status => {
     const colTasks = filtered.filter(t => t.status === status);
+    const isOpen = !!kanbanColOpen[status];
     return `
       <div class="kanban-col" data-status="${status}">
-        <div class="col-header">
+        <div class="col-header" data-col-toggle="${status}" role="button" tabindex="0" aria-expanded="${isOpen}">
           <span>${STATUS_LABELS[status]}</span>
           <span class="col-count">${colTasks.length}</span>
+          <span class="col-chevron" aria-hidden="true">▼</span>
         </div>
-        ${colTasks.map(t => taskCardHTML(t)).join('')}
+        <div class="col-body" ${isOpen ? '' : 'hidden'}>
+          ${colTasks.map(t => taskCardHTML(t)).join('')}
+        </div>
       </div>`;
   }).join('');
+
+  board.querySelectorAll('[data-col-toggle]').forEach(hdr => {
+    const toggle = () => {
+      const status = hdr.dataset.colToggle;
+      kanbanColOpen[status] = !kanbanColOpen[status];
+      renderKanban();
+    };
+    hdr.addEventListener('click', toggle);
+    hdr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') toggle(); });
+  });
 
   board.querySelectorAll('.task-card').forEach(card => {
     card.addEventListener('click', (e) => {
@@ -324,7 +350,7 @@ function renderMyTasks() {
   });
 }
 
-function eventCardHTML(ev) {
+function eventCardHTML(ev, isPast = false) {
   const evTasks = tasks.filter(t => t.eventId === ev.id);
   const isOpen = !!eventOpenState[ev.id];
   const rows = evTasks.length ? evTasks.map(t => `
@@ -349,7 +375,7 @@ function eventCardHTML(ev) {
           <span class="event-date-badge">${ev.date}</span>
           <span class="event-task-count">${evTasks.length} việc</span>
         </button>
-        <button type="button" class="btn btn-sm btn-primary btn-add-event-task" data-add-event="${ev.id}">+ Thêm việc</button>
+        ${isPast ? '' : `<button type="button" class="btn btn-sm btn-primary btn-add-event-task" data-add-event="${ev.id}">+ Thêm việc</button>`}
       </div>
       <div class="event-accordion-body" ${isOpen ? '' : 'hidden'}>
         <div class="event-tasks">
@@ -363,9 +389,10 @@ function eventCardHTML(ev) {
 }
 
 function eventsSectionHTML(key, title, list) {
+  const isPast = key === 'past';
   const isOpen = !!eventSectionState[key];
   const body = list.length
-    ? list.map(ev => eventCardHTML(ev)).join('')
+    ? list.map(ev => eventCardHTML(ev, isPast)).join('')
     : `<p class="events-section-empty">Không có sự kiện trong mục này</p>`;
 
   return `
@@ -407,7 +434,8 @@ function renderEvents() {
   container.querySelectorAll('.btn-add-event-task').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      openModal(null, btn.dataset.addEvent);
+      const evId = btn.dataset.addEvent;
+      openModal(null, evId);
     });
   });
 
@@ -472,6 +500,42 @@ function openModal(id = null, presetEventId = null) {
 function closeModal() {
   $('#task-modal').close();
   editingId = null;
+}
+
+function openEventModal() {
+  $('#event-form').reset();
+  $('#event-date-display').value = '';
+  $('#event-modal').showModal();
+}
+
+function closeEventModal() {
+  $('#event-modal').close();
+}
+
+async function saveEvent(e) {
+  e.preventDefault();
+  const name = $('#event-name').value.trim();
+  const dateISO = $('#event-date-input').value;
+  if (!name || !dateISO) return;
+  const [y, mo, d] = dateISO.split('-');
+  const date = `${d}.${mo}.${y}`;
+  try {
+    const ev = { name, date };
+    if (useServer) {
+      const res = await apiFetch('/api/events', { method: 'POST', body: JSON.stringify(ev) });
+      EVENTS = res.events;
+    } else {
+      const id = 'ev' + Date.now().toString(36);
+      EVENTS.push({ id, name, date });
+    }
+    localStorage.setItem('ban-tt-sk-events', JSON.stringify(EVENTS));
+    populateSelects();
+    renderEvents();
+    closeEventModal();
+    $('#task-event').value = EVENTS.find(ev2 => ev2.name === name)?.id || '';
+  } catch (err) {
+    alert('Lỗi thêm sự kiện: ' + err.message);
+  }
 }
 
 async function saveTask(e) {

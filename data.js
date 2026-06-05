@@ -144,6 +144,53 @@ function parseEventDateISO(event) {
   return range ? range.startISO : null;
 }
 
+function eventBracketDate(ev) {
+  if (!ev) return '';
+  const s = (ev.date || '').replace(/\s/g, '');
+  const single = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})$/);
+  if (single) return single[1];
+  const first = (ev.date || '').match(/(\d{1,2}\.\d{1,2}\.\d{4})/);
+  if (first) return first[1];
+  const range = parseEventDateRange(ev);
+  if (range?.startISO) {
+    const [y, mo, d] = range.startISO.split('-');
+    return `${d.padStart(2, '0')}.${mo.padStart(2, '0')}.${y}`;
+  }
+  return '';
+}
+
+function formatEventLabel(ev) {
+  if (!ev) return '';
+  const d = eventBracketDate(ev);
+  return d ? `${ev.name} [${d}]` : ev.name;
+}
+
+function displayDateToISO(display) {
+  const m = (display || '').match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+function isoToDisplayDate(iso) {
+  if (!iso) return '';
+  const [y, mo, d] = iso.slice(0, 10).split('-');
+  return `${d}.${mo}.${y}`;
+}
+
+function isEventPast(ev) {
+  const range = parseEventDateRange(ev);
+  if (!range) return false;
+  return range.endISO < todayISO();
+}
+
+async function persistEvents(events) {
+  if (useServer) {
+    await apiFetch('/api/events', { method: 'PUT', body: JSON.stringify(events) });
+  }
+  localStorage.setItem('ban-tt-sk-events', JSON.stringify(events));
+}
+
 function classifyEvents(eventList) {
   const today = todayISO();
   const upcoming = [];

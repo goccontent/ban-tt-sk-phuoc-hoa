@@ -20,7 +20,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-from events_store import load_events, save_events, merge_events
+from events_store import enrich_event, load_events, make_event_id, merge_events, save_events
 from import_excel import parse_excel, to_event_records
 from telegram_service import (
     BASE,
@@ -128,6 +128,35 @@ def put_tasks():
 @app.route("/api/events", methods=["GET"])
 def get_events():
     return jsonify(load_events())
+
+
+@app.route("/api/events", methods=["PUT"])
+def put_events():
+    data = request.get_json()
+    if not isinstance(data, list):
+        return jsonify({"ok": False, "error": "Expected array"}), 400
+    save_events([enrich_event(e) for e in data])
+    return jsonify({"ok": True, "count": len(data)})
+
+
+@app.route("/api/events", methods=["POST"])
+def create_event():
+    body = request.get_json() or {}
+    name = (body.get("name") or "").strip()
+    date_str = (body.get("date") or "").strip()
+    if not name or not date_str:
+        return jsonify({"ok": False, "error": "Thiếu tên hoặc ngày sự kiện"}), 400
+
+    existing = load_events()
+    ids = {e["id"] for e in existing}
+    ev = enrich_event({
+        "id": make_event_id(name, date_str, ids),
+        "name": name,
+        "date": date_str,
+    })
+    existing.append(ev)
+    save_events(existing)
+    return jsonify({"ok": True, "event": ev, "events": existing})
 
 
 @app.route("/api/events/import", methods=["POST"])

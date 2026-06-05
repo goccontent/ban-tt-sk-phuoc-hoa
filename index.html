@@ -154,7 +154,10 @@
       <div class="form-grid">
         <div class="form-group full">
           <label>Sự kiện / Chương trình</label>
-          <select id="task-event" required></select>
+          <div class="event-select-row">
+            <select id="task-event" required></select>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-event">+ Thêm sự kiện</button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -224,6 +227,35 @@
       <footer class="modal-footer">
         <button type="button" class="btn btn-ghost" id="btn-cancel">Hủy</button>
         <button type="submit" class="btn btn-primary">Lưu</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- MODAL: THÊM SỰ KIỆN -->
+  <dialog id="event-modal" class="modal">
+    <form id="event-form" class="modal-content modal-content-sm">
+      <header class="modal-header">
+        <h2>Thêm sự kiện</h2>
+        <button type="button" class="btn-close" id="btn-close-event-modal">&times;</button>
+      </header>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Tên sự kiện</label>
+          <input type="text" id="event-name" required placeholder="VD: Quốc Tế Thiếu Nhi">
+        </div>
+        <div class="form-group">
+          <label>Ngày</label>
+          <input type="date" id="event-date-input" required>
+        </div>
+        <div class="form-group">
+          <label>Hiển thị</label>
+          <input type="text" id="event-date-display" readonly class="readonly-input" placeholder="01.06.2026">
+          <span class="label-hint">Tự điền từ ngày chọn</span>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="btn-cancel-event">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu sự kiện</button>
       </footer>
     </form>
   </dialog>

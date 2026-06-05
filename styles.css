@@ -151,6 +151,22 @@ select, input, textarea {
   margin-bottom: 0.75rem;
   font-weight: 600;
   font-size: 0.95rem;
+  cursor: pointer;
+  user-select: none;
+  gap: 0.4rem;
+}
+.col-chevron {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  margin-left: auto;
+}
+.kanban-col[data-status] .col-header[aria-expanded="false"] .col-chevron {
+  transform: rotate(-90deg);
+}
+@media (min-width: 601px) {
+  .col-chevron { display: none; }
+  .col-header { cursor: default; }
 }
 
 .col-count {
@@ -160,6 +176,7 @@ select, input, textarea {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+.col-body { display: flex; flex-direction: column; gap: 0.75rem; }
 
 .task-card {
   background: var(--bg);
@@ -614,6 +631,10 @@ select, input, textarea {
 .form-group.full { grid-column: 1 / -1; }
 .form-group label { font-size: 0.85rem; font-weight: 600; }
 .label-hint { font-weight: 400; color: var(--text-muted); font-size: 0.8rem; }
+.event-select-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.event-select-row select { flex: 1; min-width: 0; }
+.modal-content-sm { max-width: 440px; }
+.readonly-input { background: var(--bg); color: var(--text-muted); }
 
 .modal-footer {
   display: flex;
