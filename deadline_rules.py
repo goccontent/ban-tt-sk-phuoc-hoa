@@ -45,10 +45,12 @@ def parse_event_date_iso(date_str):
     return rng[0] if rng else None
 
 
-def calc_deadline_for_phase(event_date_iso, phase, event_end_iso=None):
+def calc_deadline_for_phase(event_date_iso, phase, event_end_iso=None,
+                            event_start_time=None):
     """
     Trước: 2 ngày trước ngày bắt đầu, 08:00
-    Trong: ngày bắt đầu, 17:30
+    Trong: ngày bắt đầu — giờ bắt đầu sự kiện (event_start_time 'HH:MM') nếu có,
+           không thì 17:30 mặc định.
     Sau: +24h sau 18:00 NGÀY KẾT THÚC (event_end_iso); nếu không truyền thì
          dùng ngày bắt đầu. Đồng bộ với calcDeadlineForPhase() trong data.js.
     """
@@ -64,7 +66,12 @@ def calc_deadline_for_phase(event_date_iso, phase, event_end_iso=None):
         d = start - timedelta(days=TRUOC_DAYS_BEFORE)
         return datetime(d.year, d.month, d.day, *TRUOC_TIME)
     if phase == "Trong":
-        return datetime(start.year, start.month, start.day, *TRONG_TIME)
+        hh, mm = TRONG_TIME
+        if event_start_time:
+            m = re.match(r"^(\d{1,2}):(\d{2})$", str(event_start_time).strip())
+            if m:
+                hh, mm = int(m.group(1)), int(m.group(2))
+        return datetime(start.year, start.month, start.day, hh, mm)
     if phase == "Sau":
         end_dt = datetime(end.year, end.month, end.day, *EVENT_END_TIME)
         return end_dt + timedelta(hours=SAU_HOURS_AFTER)

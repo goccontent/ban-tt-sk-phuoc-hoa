@@ -1,9 +1,10 @@
 """
 Đọc file Excel kế hoạch sự kiện.
 Cột bắt buộc: Ngày + Sự kiện/Chương trình (tự nhận diện tên cột).
+Cột tuỳ chọn: Giờ (giờ bắt đầu sự kiện) — dùng làm deadline nhịp "Trong".
 """
 import re
-from datetime import date, datetime
+from datetime import date, datetime, time as _time
 
 from openpyxl import load_workbook
 
@@ -13,6 +14,9 @@ NAME_HEADERS = (
     "lễ", "le", "tên sự kiện", "ten su kien", "nội dung", "noi dung",
     "sự kiện / chương trình", "su kien / chuong trinh",
 )
+# "Giờ" là cột tuỳ chọn; chỉ nhận diện qua từ khoá giờ đặc trưng để không
+# nhầm với cột "Thời gian" (vốn được hiểu là cột Ngày).
+TIME_HEADERS = ("giờ", "gio", "time", "giờ bắt đầu", "gio bat dau")
 
 
 def _norm(s):
@@ -22,16 +26,43 @@ def _norm(s):
 
 
 def _find_columns(header_row):
-    date_col = name_col = None
+    date_col = name_col = time_col = None
     for idx, cell in enumerate(header_row):
         h = _norm(cell)
         if not h:
             continue
+        if time_col is None and any(k in h for k in TIME_HEADERS):
+            time_col = idx
+            continue  # cột Giờ không kiêm cột Ngày/Sự kiện
         if date_col is None and any(k in h for k in DATE_HEADERS):
             date_col = idx
         if name_col is None and any(k in h for k in NAME_HEADERS):
             name_col = idx
-    return date_col, name_col
+    return date_col, name_col, time_col
+
+
+def _parse_time_cell(value):
+    """Trả về 'HH:MM' hoặc None. Chấp nhận ô giờ Excel, '10:00', '10h30', '8g', '7 giờ'."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value.strftime("%H:%M")
+    if isinstance(value, _time):
+        return value.strftime("%H:%M")
+    s = str(value).strip().lower()
+    # 10:00 · 10.00 · 10h30 · 10g30 · 10 giờ 30 · 8h · 7g · 9 giờ
+    m = re.match(r"^(\d{1,2})\s*(?:[:.h g]|giờ|gio)\s*(\d{1,2})?", s)
+    if m:
+        hh = int(m.group(1))
+        mm = int(m.group(2)) if m.group(2) else 0
+        if 0 <= hh <= 23 and 0 <= mm <= 59:
+            return f"{hh:02d}:{mm:02d}"
+    m = re.match(r"^(\d{1,2})$", s)
+    if m:
+        hh = int(m.group(1))
+        if 0 <= hh <= 23:
+            return f"{hh:02d}:00"
+    return None
 
 
 def _parse_date_cell(value):
@@ -69,12 +100,12 @@ def parse_excel(file_path_or_stream):
             continue
 
         header_idx = None
-        date_col = name_col = None
+        date_col = name_col = time_col = None
         for i, row in enumerate(rows[:10]):
-            dc, nc = _find_columns(row)
+            dc, nc, tc = _find_columns(row)
             if dc is not None and nc is not None:
                 header_idx = i
-                date_col, name_col = dc, nc
+                date_col, name_col, time_col = dc, nc, tc
                 break
 
         if header_idx is None:
@@ -93,11 +124,17 @@ def parse_excel(file_path_or_stream):
             if not date_str:
                 errors.append(f"Bỏ qua '{name}': thiếu ngày")
                 continue
-            imported.append({
+            rec = {
                 "name": name,
                 "date": date_str,
                 "sheet": sheet.title,
-            })
+            }
+            if time_col is not None:
+                raw_time = row[time_col] if time_col < len(row) else None
+                t = _parse_time_cell(raw_time)
+                if t:
+                    rec["time"] = t
+            imported.append(rec)
 
     wb.close()
     return imported, errors
@@ -122,5 +159,8 @@ def to_event_records(parsed_rows, existing_ids=None):
             # eventDate = ngày kết thúc (như data.js đọc endISO); eventStartDate = ngày bắt đầu
             rec["eventDate"] = end.isoformat()
             rec["eventStartDate"] = start.isoformat()
+        if row.get("time"):
+            # giờ bắt đầu sự kiện — neo deadline nhịp "Trong"
+            rec["eventStartTime"] = row["time"]
         events.append(rec)
     return events

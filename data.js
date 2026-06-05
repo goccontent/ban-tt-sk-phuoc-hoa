@@ -119,6 +119,19 @@ async function persistTasks(tasks) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
 }
 
+// Chỉ đổi trạng thái MỘT việc — không cần mã ghi (mỗi người tự cập nhật việc mình).
+async function persistTaskStatus(id, status, tasksRef) {
+  if (useServer) {
+    await apiFetch(`/api/tasks/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+  if (Array.isArray(tasksRef)) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasksRef));
+  }
+}
+
 function getEvent(id) {
   return EVENTS.find(e => e.id === id);
 }
@@ -203,6 +216,23 @@ function formatEventLabel(ev) {
   return d ? `${ev.name} [${d}]` : ev.name;
 }
 
+// Mô tả thời điểm diễn ra sự kiện cho người nhận việc:
+// "Thứ 4, 06.06.2026 lúc 10:00" hoặc "03.06.2026 → 03.07.2026 lúc 10:00"
+function eventWhenText(ev) {
+  const range = parseEventDateRange(ev);
+  if (!range) return '';
+  const startD = isoToDisplayDate(range.startISO);
+  let when;
+  if (range.endISO && range.endISO !== range.startISO) {
+    when = `${startD} → ${isoToDisplayDate(range.endISO)}`;
+  } else {
+    const d = new Date(range.startISO + 'T00:00:00');
+    when = `${weekdayVi(d)}, ${startD}`;
+  }
+  const t = /^\d{1,2}:\d{2}$/.test(ev?.eventStartTime || '') ? ev.eventStartTime : '';
+  return t ? `${when} lúc ${t}` : when;
+}
+
 function displayDateToISO(display) {
   const m = (display || '').match(/(\d{1,2})[./](\d{1,2})[./](\d{4})/);
   if (!m) return null;
@@ -259,7 +289,9 @@ function calcDeadlineForPhase(eventId, phase) {
     return toDeadlineISO(base, '08:00');
   }
   if (phase === 'Trong') {
-    return toDeadlineISO(new Date(sy, smo - 1, sd), '17:30');
+    // Giờ bắt đầu sự kiện (nếu có) → deadline nhịp "Trong"; không thì 17:30
+    const t = /^\d{1,2}:\d{2}$/.test(ev?.eventStartTime || '') ? ev.eventStartTime : '17:30';
+    return toDeadlineISO(new Date(sy, smo - 1, sd), t);
   }
   if (phase === 'Sau') {
     const [ey, emo, ed] = range.endISO.split('-').map(Number);
@@ -305,6 +337,28 @@ function formatDeadline(dl) {
   return `${formatDate(date)} ${time}`;
 }
 
+// Thứ trong tuần đầy đủ: 0=Chủ Nhật, 1=Thứ 2 … 6=Thứ 7
+function weekdayVi(d) {
+  return d.getDay() === 0 ? 'Chủ Nhật' : `Thứ ${d.getDay() + 1}`;
+}
+
+// "Vào 10:00 - Thứ 4 (03.06.2026)"
+function formatDeadlineFull(dl) {
+  const { date, time } = splitDeadline(dl);
+  const part = (date || '').slice(0, 10);
+  const d = new Date(part + 'T00:00:00');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `Vào ${time} - ${weekdayVi(d)} (${dd}.${mm}.${yyyy})`;
+}
+
+// Nhãn nhịp đầy đủ: "Trước" → "Trước sự kiện"
+const PHASE_LABELS = { 'Trước': 'Trước sự kiện', 'Trong': 'Trong sự kiện', 'Sau': 'Sau sự kiện' };
+function phaseLabel(phase) {
+  return PHASE_LABELS[phase] || phase || '';
+}
+
 function parseDeadlineDate(dl) {
   const { date, time } = splitDeadline(dl);
   const [y, mo, d] = date.split('-').map(Number);
@@ -333,7 +387,7 @@ function alertBadgeHTML(deadline, status) {
 }
 
 function formatCountdown(deadline, status) {
-  if (status === 'da-dang') return { text: '', overdue: false, done: true };
+  if (status === 'da-dang') return { text: '', overdue: false, done: true, live: false };
   const ms = parseDeadlineDate(deadline) - new Date();
   const overdue = ms < 0;
   const abs = Math.abs(ms);
@@ -343,26 +397,34 @@ function formatCountdown(deadline, status) {
   const day = Math.floor(abs / 86400000);
   const pad = (n) => String(n).padStart(2, '0');
   const clock = `${pad(hr)}:${pad(min)}:${pad(sec)}`;
-  let text;
+  // Quá hạn: vẫn chạy đồng hồ để thấy độ trễ
   if (overdue) {
-    text = day > 0 ? `Trễ ${day} ngày ${clock}` : `Trễ ${clock}`;
-  } else {
-    text = day > 0 ? `Còn ${day} ngày ${clock}` : `Còn ${clock}`;
+    const text = day > 0 ? `Trễ ${day} ngày ${clock}` : `Trễ ${clock}`;
+    return { text, overdue: true, done: false, live: true };
   }
-  return { text, overdue, done: false };
+  // Còn xa → đếm tuần (≥14 ngày); gần hơn → đếm ngày (1–13 ngày);
+  // dưới 24 giờ → chạy đồng hồ đếm ngược theo giây.
+  if (day >= 14) {
+    const weeks = Math.round(day / 7);
+    return { text: `Còn ${weeks} tuần nữa`, overdue: false, done: false, live: false };
+  }
+  if (day >= 1) {
+    return { text: `Còn ${day} ngày nữa`, overdue: false, done: false, live: false };
+  }
+  return { text: `Còn ${clock}`, overdue: false, done: false, live: true };
 }
 
 function shouldShowCountdown(deadline, status) {
-  if (status === 'da-dang') return false;
-  return !!deadlineAlert(deadline, status).level;
+  return status !== 'da-dang';
 }
 
 function countdownHTML(deadline, status, taskId = '') {
   if (!shouldShowCountdown(deadline, status)) return '';
   const dlClass = deadlineClass(deadline, status);
-  const { text } = formatCountdown(deadline, status);
-  return `<div class="countdown-clock ${dlClass}" data-countdown data-deadline="${deadline}" data-status="${status}"${taskId ? ` data-task-id="${taskId}"` : ''}>
-    <span class="countdown-icon" aria-hidden="true">⏱</span>
+  const { text, live } = formatCountdown(deadline, status);
+  const icon = live ? '⏱' : '🗓';
+  return `<div class="countdown-clock ${dlClass}${live ? '' : ' countdown-far'}" data-countdown data-deadline="${deadline}" data-status="${status}"${taskId ? ` data-task-id="${taskId}"` : ''}>
+    <span class="countdown-icon" aria-hidden="true">${icon}</span>
     <span class="countdown-text">${text}</span>
   </div>`;
 }

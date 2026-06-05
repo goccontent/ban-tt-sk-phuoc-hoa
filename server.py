@@ -4,6 +4,7 @@ Server phần mềm Ban TT-SK
 - Production: gunicorn wsgi:app (Render.com miễn phí)
 """
 import os
+import re
 import sys
 import threading
 import time
@@ -92,11 +93,19 @@ def write_pin_ok():
 _GUARDED_PREFIXES = ("/api/tasks", "/api/events", "/api/members")
 
 
+# Mỗi thành viên được tự đổi TRẠNG THÁI việc của mình mà không cần mã ghi
+# (chỉ sửa duy nhất trường status; không tạo/xóa/đổi nội dung). Khớp
+# /api/tasks/<id>/status — được miễn rào ghi.
+_STATUS_PATCH_RE = re.compile(r"^/api/tasks/[^/]+/status$")
+
+
 @app.before_request
 def guard_data_writes():
     if request.method not in ("POST", "PUT", "DELETE", "PATCH"):
         return
     path = request.path
+    if request.method == "PATCH" and _STATUS_PATCH_RE.match(path):
+        return
     if not any(path.startswith(p) for p in _GUARDED_PREFIXES):
         return
     if write_pin_ok():
@@ -166,6 +175,24 @@ def put_tasks():
     return jsonify({"ok": True, "count": len(data)})
 
 
+_VALID_STATUS = {"chua-lam", "dang-lam", "cho-duyet", "da-dang"}
+
+
+@app.route("/api/tasks/<task_id>/status", methods=["PATCH"])
+def patch_task_status(task_id):
+    body = request.get_json() or {}
+    status = (body.get("status") or "").strip()
+    if status not in _VALID_STATUS:
+        return jsonify({"ok": False, "error": "Trạng thái không hợp lệ"}), 400
+    tasks = load_tasks()
+    target = next((t for t in tasks if t.get("id") == task_id), None)
+    if not target:
+        return jsonify({"ok": False, "error": "Không tìm thấy việc"}), 404
+    target["status"] = status
+    save_tasks(tasks, backup=False)
+    return jsonify({"ok": True, "task": target})
+
+
 # --- Events API ---
 
 @app.route("/api/events", methods=["GET"])
@@ -191,16 +218,20 @@ def create_event():
     body = request.get_json() or {}
     name = (body.get("name") or "").strip()
     date_str = (body.get("date") or "").strip()
+    time_str = (body.get("time") or "").strip()
     if not name or not date_str:
         return jsonify({"ok": False, "error": "Thiếu tên hoặc ngày sự kiện"}), 400
 
     existing = load_events()
     ids = {e["id"] for e in existing}
-    ev = enrich_event({
+    ev_data = {
         "id": make_event_id(name, date_str, ids),
         "name": name,
         "date": date_str,
-    })
+    }
+    if re.match(r"^\d{1,2}:\d{2}$", time_str):
+        ev_data["eventStartTime"] = time_str
+    ev = enrich_event(ev_data)
     existing.append(ev)
     save_events(existing)
     try:

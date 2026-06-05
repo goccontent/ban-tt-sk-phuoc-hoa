@@ -247,6 +247,12 @@ select, input, textarea {
 .task-desc { font-size: 0.88rem; margin-bottom: 0.5rem; line-height: 1.4; }
 .task-meta { font-size: 0.78rem; color: var(--text-muted); }
 .task-meta strong { color: var(--text); }
+.task-event-when {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--primary);
+  font-weight: 500;
+}
 .task-deadline { margin-top: 0.35rem; font-size: 0.78rem; }
 .task-deadline.overdue { color: #dc2626; font-weight: 700; }
 .task-deadline.soon { color: #ea580c; font-weight: 700; }
@@ -286,6 +292,17 @@ select, input, textarea {
 
 .countdown-clock:not(.soon):not(.overdue) {
   color: var(--primary);
+}
+
+/* Đếm tuần/ngày (không chạy đồng hồ) — chữ thường, nhẹ nhàng hơn */
+.countdown-clock.countdown-far {
+  background: var(--surface);
+  border-style: dashed;
+  font-weight: 500;
+}
+.countdown-clock.countdown-far .countdown-text {
+  font-family: inherit;
+  letter-spacing: normal;
 }
 
 .deadline-cell { display: flex; flex-direction: column; gap: 0.25rem; }
@@ -360,11 +377,41 @@ select, input, textarea {
   flex-wrap: wrap;
 }
 
+.task-self-actions { display: flex; gap: 0.35rem; margin-top: 0.5rem; }
+/* Người thường chỉ thấy nút đổi trạng thái trên việc CỦA MÌNH */
+body.not-admin .task-self-actions:not(.is-mine) { display: none; }
+
 .hint { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
 
 /* Việc của tôi */
 
 .my-tasks-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+/* Nhóm việc theo thời gian */
+.task-group { display: flex; flex-direction: column; gap: 0.75rem; }
+.task-group + .task-group { margin-top: 1.1rem; }
+.task-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding: 0.3rem 0.1rem 0.15rem;
+  border-bottom: 2px solid var(--border);
+}
+.task-group-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  letter-spacing: 0;
+}
 
 .my-task-item {
   background: var(--surface);
@@ -580,6 +627,24 @@ body.not-admin .event-task-row[data-task-id] { cursor: default; }
 
 .event-task-row:last-child { border-bottom: none; }
 .event-task-row.header { font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
+
+/* Việc của người đang chọn tên — tô xanh để dễ thấy */
+.event-task-row.event-task-mine {
+  background: #e3f5ea;
+  box-shadow: inset 3px 0 0 #16a34a;
+  border-radius: 4px;
+}
+.event-task-row.event-task-mine:hover { background: #d4eedd; }
+
+.event-mine-badge {
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
 
 @media (max-width: 900px) {
   .event-task-row {

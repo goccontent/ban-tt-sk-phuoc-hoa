@@ -353,10 +353,13 @@ async function downloadBackup() {
 function tickCountdowns() {
   document.querySelectorAll('[data-countdown]').forEach((el) => {
     const { deadline, status } = el.dataset;
-    const { text, overdue, done } = formatCountdown(deadline, status);
+    const { text, overdue, done, live } = formatCountdown(deadline, status);
     if (done) return;
     const textEl = el.querySelector('.countdown-text');
     if (textEl) textEl.textContent = text;
+    const iconEl = el.querySelector('.countdown-icon');
+    if (iconEl) iconEl.textContent = live ? '⏱' : '🗓';
+    el.classList.toggle('countdown-far', !live);
     el.classList.remove('overdue', 'soon');
     if (overdue) el.classList.add('overdue');
     else if (deadlineClass(deadline, status) === 'soon') el.classList.add('soon');
@@ -408,6 +411,27 @@ function sortTasksForBoard(list) {
   });
 }
 
+// Đầu tuần (Thứ Hai 00:00) chứa ngày d
+function startOfWeekMonday(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const wd = (x.getDay() + 6) % 7; // Mon=0 … Sun=6
+  x.setDate(x.getDate() - wd);
+  return x;
+}
+
+// Gom việc theo tuần lịch — tự trôi khi thời gian qua đi
+function taskTimeBucket(t, now) {
+  if (t.status === 'da-dang') return { order: 6, label: '✅ Đã xong' };
+  const dl = parseDeadlineDate(t.deadline);
+  if (dl - now < 0) return { order: 0, label: '🔴 Quá hạn' };
+  const wi = Math.round((startOfWeekMonday(dl) - startOfWeekMonday(now)) / (7 * 86400000));
+  if (wi <= 0) return { order: 1, label: 'Tuần này' };
+  if (wi === 1) return { order: 2, label: 'Tuần sau' };
+  if (wi === 2) return { order: 3, label: '2 tuần nữa' };
+  if (wi === 3) return { order: 4, label: '3 tuần nữa' };
+  return { order: 5, label: '1 tháng nữa' };
+}
+
 function renderTaskList() {
   const container = $('#my-tasks');
   const me = $('#my-name').value;
@@ -424,7 +448,20 @@ function renderTaskList() {
     return;
   }
 
-  container.innerHTML = list.map(t => taskListItemHTML(t, me, mineMode)).join('');
+  // Gom theo nhóm thời gian (Quá hạn · Tuần này · Tuần sau · 2/3 tuần · 1 tháng · Đã xong)
+  const now = new Date();
+  const groups = new Map();
+  list.forEach(t => {
+    const b = taskTimeBucket(t, now);
+    if (!groups.has(b.order)) groups.set(b.order, { label: b.label, items: [] });
+    groups.get(b.order).items.push(t);
+  });
+  const ordered = [...groups.entries()].sort((a, b) => a[0] - b[0]);
+  container.innerHTML = ordered.map(([, g]) => `
+    <div class="task-group">
+      <div class="task-group-header"><span>${g.label}</span><span class="task-group-count">${g.items.length}</span></div>
+      ${g.items.map(t => taskListItemHTML(t, me, mineMode)).join('')}
+    </div>`).join('');
 
   container.querySelectorAll('.my-task-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -437,11 +474,18 @@ function renderTaskList() {
   container.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!isAdminActive()) return;
       const id = btn.closest('.my-task-item').dataset.id;
       const action = btn.dataset.action;
-      if (action === 'next') advanceStatus(id);
-      else if (action === 'delete') deleteTask(id);
+      if (action === 'next') {
+        // Đổi trạng thái: admin được mọi việc; người thường chỉ việc của mình.
+        const t = tasks.find(x => x.id === id);
+        const isMine = !!me && t && (t.owner === me || (t.helpers || []).includes(me));
+        if (!isAdminActive() && !isMine) return;
+        advanceStatus(id);
+        return;
+      }
+      if (!isAdminActive()) return; // xóa / nhắc: chỉ admin
+      if (action === 'delete') deleteTask(id);
       else if (action === 'remind') remindTask(id);
     });
   });
@@ -450,6 +494,7 @@ function renderTaskList() {
 function taskListItemHTML(t, me, mineMode) {
   const ev = getEvent(t.eventId);
   const isOwner = t.owner === me;
+  const isMine = !!me && (isOwner || (t.helpers || []).includes(me));
   const dlClass = deadlineClass(t.deadline, t.status);
   const alertHtml = alertBadgeHTML(t.deadline, t.status);
   const nextStatus = getNextStatus(t.status);
@@ -459,23 +504,27 @@ function taskListItemHTML(t, me, mineMode) {
     : `Chủ trì: <strong>${t.owner}</strong>`;
   const rank = urgencyRank(t);
   const urgent = rank === 0 || rank === 1; // quá hạn hoặc gần đến hạn
+  const when = eventWhenText(ev);
   return `
     <div class="my-task-item ${isOwner && mineMode ? 'chinh' : ''} ${dlClass}" data-id="${t.id}">
       <div class="task-main">
         ${alertHtml}
-        <div class="task-phase">${t.phase} · ${ev?.name || ''} · ${t.ban}</div>
+        <div class="task-phase">${phaseLabel(t.phase)} · ${ev?.name || ''} · Ban ${t.ban}</div>
         <div class="task-desc" style="margin:0.35rem 0">${t.desc}</div>
         <div class="task-meta">
           ${ownerLine}${helpers ? ` · PH: ${helpers}` : ''}
         </div>
-        <div class="task-deadline ${dlClass}">Hạn: ${formatDeadline(t.deadline)}</div>
+        ${when ? `<div class="task-event-when">🗓 Sự kiện: ${when}</div>` : ''}
+        <div class="task-deadline ${dlClass}">Hạn: ${formatDeadlineFull(t.deadline)}</div>
         ${countdownHTML(t.deadline, t.status, t.id)}
       </div>
       <div class="task-side">
         <span class="status-badge status-${t.status}">${STATUS_LABELS[t.status]}</span>
+        ${nextStatus ? `<div class="task-self-actions${isMine ? ' is-mine' : ''}">
+          <button class="btn btn-sm btn-secondary" data-action="next">→ ${STATUS_LABELS[nextStatus]}</button>
+        </div>` : ''}
         <div class="task-actions">
           ${urgent ? `<button class="btn btn-sm btn-warn" data-action="remind" title="Nhắc Chủ trì + Phối hợp qua Telegram">📱 Nhắc</button>` : ''}
-          ${nextStatus ? `<button class="btn btn-sm btn-secondary" data-action="next">→ ${STATUS_LABELS[nextStatus]}</button>` : ''}
           <button class="btn btn-sm btn-ghost" data-action="delete" title="Chuyển vào thùng rác">🗑</button>
         </div>
       </div>
@@ -492,11 +541,19 @@ async function advanceStatus(id) {
   const t = tasks.find(x => x.id === id);
   if (!t) return;
   const next = getNextStatus(t.status);
-  if (next) {
-    t.status = next;
-    await syncTasks();
-    renderAll();
+  if (!next) return;
+  const prev = t.status;
+  t.status = next;
+  try {
+    // Chỉ đổi trạng thái → dùng endpoint riêng (không cần mã ghi),
+    // để mỗi thành viên tự cập nhật việc của mình.
+    await persistTaskStatus(id, next, tasks);
+  } catch (e) {
+    t.status = prev;
+    alert('Không cập nhật được trạng thái. Thử lại sau.');
+    return;
   }
+  renderAll();
 }
 
 async function deleteTask(id) {
@@ -554,14 +611,17 @@ function renderTrash() {
 function eventCardHTML(ev, isPast = false) {
   const evTasks = getActiveTasks().filter(t => t.eventId === ev.id);
   const isOpen = !!eventOpenState[ev.id];
+  const me = $('#my-name').value;
+  const taskIsMine = t => !!me && (t.owner === me || (t.helpers || []).includes(me));
+  const mineCount = me ? evTasks.filter(taskIsMine).length : 0;
   const rows = evTasks.length ? evTasks.map(t => `
-      <div class="event-task-row" data-task-id="${t.id}">
-        <span data-label="Nhịp">${t.phase}</span>
+      <div class="event-task-row${taskIsMine(t) ? ' event-task-mine' : ''}" data-task-id="${t.id}">
+        <span data-label="Nhịp">${phaseLabel(t.phase)}</span>
         <span data-label="Đầu việc">${t.desc}</span>
         <span data-label="Chủ trì">${t.owner}</span>
         <span data-label="Phối hợp">${t.helpers?.join(', ') || '—'}</span>
         <span class="deadline-cell" data-label="Hạn">
-          <span>${formatDeadline(t.deadline)}</span>
+          <span>${formatDeadlineFull(t.deadline)}</span>
           ${countdownHTML(t.deadline, t.status, t.id)}
         </span>
         <span class="status-badge status-${t.status}" data-label="Trạng thái">${STATUS_LABELS[t.status]}</span>
@@ -573,7 +633,8 @@ function eventCardHTML(ev, isPast = false) {
         <button type="button" class="event-accordion-toggle" data-event-toggle="${ev.id}" aria-expanded="${isOpen}">
           <span class="event-chevron" aria-hidden="true">▶</span>
           <span class="event-accordion-title">${ev.name}</span>
-          <span class="event-date-badge">${ev.date}</span>
+          ${mineCount ? `<span class="event-mine-badge" title="Bạn được phân công trong sự kiện này">● Có việc của bạn (${mineCount})</span>` : ''}
+          <span class="event-date-badge">${ev.date}${/^\d{1,2}:\d{2}$/.test(ev.eventStartTime || '') ? ` · ${ev.eventStartTime}` : ''}</span>
           <span class="event-task-count">${evTasks.length} việc</span>
         </button>
         ${isPast ? '' : `<button type="button" class="btn btn-sm btn-primary btn-add-event-task" data-add-event="${ev.id}">+ Thêm việc</button>`}
@@ -651,7 +712,15 @@ function renderEvents() {
 function updatePhaseHint() {
   const phase = $('#task-phase')?.value;
   const el = $('#phase-rule-hint');
-  if (el) el.textContent = PHASE_RULES[phase] || '';
+  if (!el) return;
+  let txt = PHASE_RULES[phase] || '';
+  if (phase === 'Trong') {
+    const ev = getEvent($('#task-event')?.value);
+    if (/^\d{1,2}:\d{2}$/.test(ev?.eventStartTime || '')) {
+      txt = `Trong ngày sự kiện · hạn ${ev.eventStartTime} (giờ sự kiện)`;
+    }
+  }
+  el.textContent = txt;
 }
 
 function applyDeadlineFromPhase() {
@@ -723,14 +792,18 @@ async function saveEvent(e) {
   if (!name || !dateISO) return;
   const [y, mo, d] = dateISO.split('-');
   const date = `${d}.${mo}.${y}`;
+  const time = ($('#event-time-input')?.value || '').trim();
   try {
     const ev = { name, date };
+    if (time) ev.time = time;
     if (useServer) {
       const res = await apiFetch('/api/events', { method: 'POST', body: JSON.stringify(ev) });
       EVENTS = res.events;
     } else {
       const id = 'ev' + Date.now().toString(36);
-      EVENTS.push({ id, name, date });
+      const local = { id, name, date };
+      if (time) local.eventStartTime = time;
+      EVENTS.push(local);
     }
     localStorage.setItem('ban-tt-sk-events', JSON.stringify(EVENTS));
     populateSelects();
