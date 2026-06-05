@@ -144,19 +144,26 @@ def urgency_label(deadline_str, now=None):
     return ""
 
 
-def build_reminder_message(name, task_list, now=None):
+def build_reminder_message(name, task_list, now=None, all_open=False):
     if now is None:
         now = datetime.now()
     lines = [f"Chào <b>{name}</b>! Việc cần làm:", ""]
+    shown = 0
     for t in sorted(task_list, key=lambda x: x["deadline"]):
         urg = urgency_label(t["deadline"], now)
-        if not urg:
+        if not all_open and not urg:
             continue
         dl = format_deadline_vi(t["deadline"])
         st = STATUS_LABELS.get(t.get("status", "chua-lam"), "")
-        lines.append(f"{urg} <b>{dl}</b> [{st}]")
+        role = t.get("_role", "")
+        role_txt = f" ({role})" if role else ""
+        prefix = f"{urg} " if urg else "📌 "
+        lines.append(f"{prefix}<b>{dl}</b> [{st}]{role_txt}")
         lines.append(f"→ {t['desc']}")
         lines.append("")
+        shown += 1
+    if not shown:
+        return ""
     lines.append("<i>Ban TT-SK · GX Phước Hòa</i>")
     return "\n".join(lines)
 
@@ -176,6 +183,75 @@ def get_reminders_for_user(name, tasks=None, days_ahead=3, now=None):
         if level:
             result.append(t)
     return result
+
+
+def get_member_tasks(name, tasks=None, alerts_only=False, now=None):
+    """Việc của thành viên (chủ trì hoặc phối hợp)."""
+    if now is None:
+        now = datetime.now()
+    if tasks is None:
+        tasks = load_tasks()
+    result = []
+    for t in tasks:
+        if t.get("status") == "da-dang":
+            continue
+        is_owner = t.get("owner") == name
+        is_helper = name in (t.get("helpers") or [])
+        if not is_owner and not is_helper:
+            continue
+        if alerts_only:
+            level, _ = deadline_alert_level(t["deadline"], now)
+            if not level:
+                continue
+        item = dict(t)
+        item["_role"] = "CHỦ TRÌ" if is_owner else "PHỐI HỢP"
+        result.append(item)
+    return result
+
+
+def send_reminder_to_user(name, alerts_only=False, dry_run=False):
+    """Gửi nhắc việc cho một thành viên qua Telegram."""
+    cfg = load_config()
+    token = cfg.get("bot_token")
+    if not token:
+        return {"ok": False, "error": "Chưa cấu hình bot_token"}
+
+    users = load_users()
+    chat_id = users.get(name)
+    if not chat_id:
+        return {
+            "ok": False,
+            "error": f"{name} chưa đăng ký Telegram — nhắn bot /start {name}",
+        }
+
+    task_list = get_member_tasks(name, alerts_only=alerts_only)
+    if not task_list:
+        return {
+            "ok": False,
+            "error": "Không có việc cần nhắc" if alerts_only else "Không có việc đang mở",
+        }
+
+    msg = build_reminder_message(name, task_list, all_open=not alerts_only)
+    if not msg:
+        return {"ok": False, "error": "Không có việc cần nhắc"}
+
+    if dry_run:
+        return {
+            "ok": True,
+            "dry_run": True,
+            "name": name,
+            "chat_id": chat_id,
+            "tasks": len(task_list),
+            "preview": msg,
+        }
+
+    res = send_message(token, chat_id, msg)
+    if res.get("ok"):
+        return {"ok": True, "name": name, "chat_id": chat_id, "tasks": len(task_list)}
+    return {
+        "ok": False,
+        "error": res.get("description") or res.get("error") or "Gửi thất bại",
+    }
 
 
 def send_reminders(token=None, days_ahead=None, dry_run=False):

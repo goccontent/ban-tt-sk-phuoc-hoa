@@ -33,6 +33,7 @@ from telegram_service import (
     poller,
     save_config,
     save_json,
+    send_reminder_to_user,
     send_reminders,
     setup_webhook,
     test_bot,
@@ -42,6 +43,32 @@ from telegram_service import (
 
 app = Flask(__name__, static_folder=str(BASE))
 CORS(app)
+
+
+def mask_secret(value, tail=4):
+    if not value:
+        return ""
+    s = str(value)
+    if len(s) <= tail:
+        return "••••"
+    return "••••" + s[-tail:]
+
+
+def admin_pin_configured():
+    return bool(os.getenv("ADMIN_PIN"))
+
+
+def is_admin_request(body=None):
+    expected = os.getenv("ADMIN_PIN", "")
+    if not expected:
+        return False
+    body = body if body is not None else (request.get_json(silent=True) or {})
+    supplied = (request.headers.get("X-Admin-Pin") or body.get("admin_pin") or "").strip()
+    return supplied == expected
+
+
+def secrets_locked():
+    return bool(os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAM_GROUP_CHAT_ID"))
 
 _initialized = False
 
@@ -149,12 +176,20 @@ def import_events_excel():
 @app.route("/api/telegram/config", methods=["GET"])
 def tg_config_get():
     cfg = load_config()
+    admin = is_admin_request()
     safe = {
         **cfg,
         "bot_token": ("••••" + cfg["bot_token"][-6:]) if cfg.get("bot_token") else "",
+        "group_chat_id": mask_secret(cfg.get("group_chat_id")) if not admin else cfg.get("group_chat_id", ""),
         "production": is_production(),
         "webhook_url": f"{webhook_base_url()}/api/telegram/webhook/{webhook_secret()}" if webhook_base_url() else "",
+        "secrets_locked": secrets_locked(),
+        "admin_pin_set": admin_pin_configured(),
+        "is_admin": admin,
     }
+    if "bot_token" in safe and not admin:
+        safe.pop("bot_token", None)
+        safe["bot_token_hint"] = ("••••" + cfg["bot_token"][-6:]) if cfg.get("bot_token") else ""
     return jsonify(safe)
 
 
@@ -162,9 +197,24 @@ def tg_config_get():
 def tg_config_put():
     body = request.get_json() or {}
     cfg = load_config()
+    changing_secrets = False
+    if "bot_token" in body and body["bot_token"] and not str(body["bot_token"]).startswith("••••"):
+        changing_secrets = True
+    if "group_chat_id" in body and body["group_chat_id"] != cfg.get("group_chat_id", ""):
+        changing_secrets = True
+    if changing_secrets and secrets_locked() and not is_admin_request(body):
+        return jsonify({
+            "ok": False,
+            "error": "Token / Group ID được khóa trên server. Cần mã quản trị viên.",
+        }), 403
+
     for k in ("bot_token", "group_chat_id", "reminder_hour", "reminder_days_ahead", "enabled"):
         if k in body and body[k] is not None:
             if k == "bot_token" and str(body[k]).startswith("••••"):
+                continue
+            if k == "group_chat_id" and secrets_locked() and not is_admin_request(body):
+                continue
+            if k == "bot_token" and secrets_locked() and not is_admin_request(body):
                 continue
             cfg[k] = body[k]
     save_config(cfg)
@@ -173,9 +223,22 @@ def tg_config_put():
     return jsonify({"ok": True})
 
 
+@app.route("/api/admin/verify", methods=["POST"])
+def admin_verify():
+    body = request.get_json(silent=True) or {}
+    if not admin_pin_configured():
+        return jsonify({"ok": False, "error": "Chưa đặt ADMIN_PIN trên server"}), 400
+    if is_admin_request(body):
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "Mã quản trị không đúng"}), 403
+
+
 @app.route("/api/telegram/users", methods=["GET"])
 def tg_users():
-    return jsonify(load_users())
+    users = load_users()
+    if is_admin_request():
+        return jsonify(users)
+    return jsonify({name: mask_secret(cid, 3) for name, cid in users.items()})
 
 
 @app.route("/api/telegram/test", methods=["POST"])
@@ -191,6 +254,19 @@ def tg_test():
 def tg_send():
     body = request.get_json(silent=True) or {}
     return jsonify(send_reminders(dry_run=body.get("dry_run", False)))
+
+
+@app.route("/api/telegram/send-user", methods=["POST"])
+def tg_send_user():
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "Thiếu tên thành viên"}), 400
+    return jsonify(send_reminder_to_user(
+        name,
+        alerts_only=body.get("alerts_only", False),
+        dry_run=body.get("dry_run", False),
+    ))
 
 
 @app.route("/api/telegram/preview", methods=["GET"])

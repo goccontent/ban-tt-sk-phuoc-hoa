@@ -1,9 +1,15 @@
 let tasks = [];
 let editingId = null;
 let countdownTimer = null;
+const ADMIN_SESSION_KEY = 'ban-tt-sk-admin-pin';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
+
+function adminHeaders() {
+  const pin = sessionStorage.getItem(ADMIN_SESSION_KEY);
+  return pin ? { 'X-Admin-Pin': pin } : {};
+}
 
 async function init() {
   await checkServer();
@@ -22,6 +28,7 @@ async function init() {
   if (useServer) {
     await loadTelegramConfig();
     await loadTelegramUsers();
+    updateMemberReminderButton();
     showServerBadge();
   } else {
     $('#telegram-setup')?.classList.add('offline');
@@ -80,13 +87,24 @@ function bindEvents() {
   $('#my-name').addEventListener('change', (e) => {
     localStorage.setItem(STORAGE_USER_KEY, e.target.value);
     renderMyTasks();
+    updateMemberReminderButton();
+    $('#mine-reminder-status').innerHTML = '';
   });
 
+  $('#btn-send-member-reminder')?.addEventListener('click', sendMemberReminder);
   $('#btn-simulate-bot').addEventListener('click', () => previewReminders());
   $('#btn-tg-save')?.addEventListener('click', saveTelegramConfig);
+  $('#btn-tg-save-public')?.addEventListener('click', saveTelegramConfigPublic);
   $('#btn-tg-test')?.addEventListener('click', testTelegram);
   $('#btn-tg-send')?.addEventListener('click', sendTelegramReminders);
   $('#btn-tg-webhook')?.addEventListener('click', setupTelegramWebhook);
+  $('#btn-tg-admin')?.addEventListener('click', unlockTelegramAdmin);
+}
+
+function updateMemberReminderButton() {
+  const btn = $('#btn-send-member-reminder');
+  if (!btn) return;
+  btn.disabled = !useServer || !$('#my-name').value;
 }
 
 async function importFromExcel(file) {
@@ -499,13 +517,37 @@ async function previewReminders() {
 
 // --- Telegram API ---
 
+function applyTelegramUiState(cfg) {
+  const locked = cfg.secrets_locked && !cfg.is_admin;
+  const banner = $('#tg-locked-banner');
+  if (banner) banner.hidden = !cfg.secrets_locked;
+  const secretFields = $('#tg-secret-fields');
+  if (secretFields) secretFields.hidden = locked;
+  $$('.tg-admin-only').forEach((el) => { el.hidden = locked; });
+  const savePublic = $('#btn-tg-save-public');
+  if (savePublic) savePublic.hidden = !locked;
+  const status = $('#tg-locked-status');
+  if (status && cfg.secrets_locked) {
+    const parts = [];
+    if (cfg.bot_token_hint) parts.push(`Bot: ${cfg.bot_token_hint}`);
+    if (cfg.group_chat_id) parts.push(`Group: ${cfg.group_chat_id}`);
+    status.textContent = parts.join(' · ') || 'Đã cấu hình trên server';
+  }
+}
+
 async function loadTelegramConfig() {
   try {
-    const cfg = await apiFetch('/api/telegram/config');
-    $('#tg-token').placeholder = cfg.bot_token || '123456:ABC...';
-    $('#tg-group').value = cfg.group_chat_id || '';
+    const cfg = await apiFetch('/api/telegram/config', { headers: adminHeaders() });
+    $('#tg-token').placeholder = cfg.bot_token_hint || cfg.bot_token || '123456:ABC...';
+    if (cfg.is_admin) {
+      $('#tg-group').value = cfg.group_chat_id || '';
+    } else {
+      $('#tg-group').value = '';
+      $('#tg-group').placeholder = cfg.group_chat_id || '-100...';
+    }
     $('#tg-hour').value = cfg.reminder_hour ?? 7;
     $('#tg-enabled').checked = !!cfg.enabled;
+    applyTelegramUiState(cfg);
     const hint = $('#tg-deploy-hint');
     if (hint) {
       if (cfg.production && cfg.webhook_url) {
@@ -515,6 +557,46 @@ async function loadTelegramConfig() {
       }
     }
   } catch { /* ignore */ }
+}
+
+async function unlockTelegramAdmin() {
+  const pin = prompt('Nhập mã quản trị viên (ADMIN_PIN trên Render):');
+  if (!pin) return;
+  try {
+    const res = await apiFetch('/api/admin/verify', {
+      method: 'POST',
+      body: JSON.stringify({ admin_pin: pin }),
+    });
+    if (res.ok) {
+      sessionStorage.setItem(ADMIN_SESSION_KEY, pin);
+      await loadTelegramConfig();
+      $('#tg-status').innerHTML = '<p class="ok">✓ Đã mở khóa — có thể sửa Token / Group ID</p>';
+    }
+  } catch {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    alert('Mã quản trị không đúng');
+  }
+}
+
+async function sendMemberReminder() {
+  const name = $('#my-name').value;
+  if (!name || !useServer) return;
+  if (!confirm(`Gửi danh sách việc đang mở qua Telegram cho ${name}?`)) return;
+  const status = $('#mine-reminder-status');
+  status.innerHTML = '<span class="hint">Đang gửi...</span>';
+  try {
+    const res = await apiFetch('/api/telegram/send-user', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      status.innerHTML = `<span class="ok">✓ Đã gửi ${res.tasks} việc cho ${name} qua Telegram</span>`;
+    } else {
+      status.innerHTML = `<span class="err">✗ ${res.error}</span>`;
+    }
+  } catch (e) {
+    status.innerHTML = `<span class="err">Lỗi: ${e.message}</span>`;
+  }
 }
 
 async function setupTelegramWebhook() {
@@ -540,9 +622,32 @@ async function saveTelegramConfig() {
       reminder_hour: parseInt($('#tg-hour').value, 10),
       enabled: $('#tg-enabled').checked
     };
-    await apiFetch('/api/telegram/config', { method: 'PUT', body: JSON.stringify(body) });
+    await apiFetch('/api/telegram/config', {
+      method: 'PUT',
+      headers: adminHeaders(),
+      body: JSON.stringify(body),
+    });
     $('#tg-status').innerHTML = '<p class="ok">✓ Đã lưu cấu hình Telegram</p>';
     $('#tg-token').value = '';
+    await loadTelegramConfig();
+  } catch (e) {
+    $('#tg-status').innerHTML = `<p class="err">Lỗi: ${e.message}</p>`;
+  }
+}
+
+async function saveTelegramConfigPublic() {
+  if (!useServer) return;
+  try {
+    const body = {
+      reminder_hour: parseInt($('#tg-hour').value, 10),
+      enabled: $('#tg-enabled').checked
+    };
+    await apiFetch('/api/telegram/config', {
+      method: 'PUT',
+      headers: adminHeaders(),
+      body: JSON.stringify(body),
+    });
+    $('#tg-status').innerHTML = '<p class="ok">✓ Đã lưu giờ nhắc</p>';
   } catch (e) {
     $('#tg-status').innerHTML = `<p class="err">Lỗi: ${e.message}</p>`;
   }
@@ -589,10 +694,10 @@ async function sendTelegramReminders() {
 async function loadTelegramUsers() {
   if (!useServer) return;
   try {
-    const users = await apiFetch('/api/telegram/users');
+    const users = await apiFetch('/api/telegram/users', { headers: adminHeaders() });
     const names = Object.entries(users);
     $('#tg-users').innerHTML = names.length
-      ? `<p class="hint"><strong>Đã đăng ký Telegram:</strong> ${names.map(([n, id]) => `${n} (${id})`).join(' · ')}</p>`
+      ? `<p class="hint"><strong>Đã đăng ký Telegram:</strong> ${names.map(([n, id]) => `${n}${id ? ` (${id})` : ''}`).join(' · ')}</p>`
       : '<p class="hint">Chưa ai đăng ký — nhắn bot <code>/start Tên</code></p>';
   } catch { /* ignore */ }
 }

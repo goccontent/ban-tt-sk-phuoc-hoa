@@ -312,7 +312,17 @@ select, input, textarea {
   box-shadow: var(--shadow);
 }
 
+.mine-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
 .mine-header label { font-weight: 600; display: flex; align-items: center; gap: 0.75rem; }
+#mine-reminder-status .ok { color: #059669; }
+#mine-reminder-status .err { color: #dc2626; }
 .hint { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
 
 .my-tasks-list { display: flex; flex-direction: column; gap: 0.75rem; }
@@ -534,6 +544,19 @@ select, input, textarea {
 }
 
 .telegram-setup h3 { font-size: 1rem; margin-bottom: 1rem; color: var(--primary); }
+
+.tg-locked-banner {
+  background: var(--accent-soft);
+  border: 1px solid #e8d9a8;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.tg-form-public {
+  margin-bottom: 1rem;
+}
 
 .tg-form {
   display: grid;

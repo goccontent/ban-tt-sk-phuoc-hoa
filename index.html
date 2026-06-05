@@ -54,12 +54,16 @@
     <!-- TAB: VIỆC CỦA TÔI -->
     <section id="tab-mine" class="tab-panel">
       <div class="mine-header">
-        <label>Tôi là:
-          <select id="my-name">
-            <option value="">— Chọn tên —</option>
-          </select>
-        </label>
-        <p class="hint">Lọc cột Chủ trì = tên mình → thấy ngay việc của mình</p>
+        <div class="mine-header-row">
+          <label>Xem việc của:
+            <select id="my-name">
+              <option value="">— Chọn tên —</option>
+            </select>
+          </label>
+          <button type="button" class="btn btn-secondary" id="btn-send-member-reminder" title="Gửi danh sách việc qua Telegram">📱 Gửi tin nhắc việc ngay</button>
+        </div>
+        <p class="hint">Chọn tên thành viên để xem việc chủ trì / phối hợp. Người giao việc có thể bấm gửi nhắc qua Telegram.</p>
+        <p id="mine-reminder-status" class="hint"></p>
       </div>
       <div id="my-tasks" class="my-tasks-list"></div>
     </section>
@@ -94,15 +98,22 @@
 
       <div class="telegram-setup" id="telegram-setup">
         <h3>Cấu hình Telegram</h3>
-        <div class="tg-form">
+        <div id="tg-locked-banner" class="tg-locked-banner" hidden>
+          <p><strong>🔒 Token bot và Group ID đã khóa</strong> — chỉ quản trị viên mới sửa được (cấu hình trên Render).</p>
+          <p id="tg-locked-status" class="hint"></p>
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-tg-admin">Mở khóa quản trị viên</button>
+        </div>
+        <div class="tg-form" id="tg-secret-fields">
           <div class="form-group">
             <label>Bot Token <span class="label-hint">(từ @BotFather)</span></label>
-            <input type="password" id="tg-token" placeholder="123456:ABC-DEF...">
+            <input type="password" id="tg-token" placeholder="123456:ABC-DEF..." autocomplete="off">
           </div>
           <div class="form-group">
             <label>Group Chat ID <span class="label-hint">(nhóm ban, tùy chọn)</span></label>
-            <input type="text" id="tg-group" placeholder="-1001234567890">
+            <input type="text" id="tg-group" placeholder="-1001234567890" autocomplete="off">
           </div>
+        </div>
+        <div class="tg-form tg-form-public">
           <div class="form-group">
             <label>Giờ nhắc sáng</label>
             <input type="number" id="tg-hour" min="0" max="23" value="7">
@@ -112,10 +123,11 @@
           </label>
         </div>
         <div class="tg-actions">
-          <button class="btn btn-secondary" id="btn-tg-save">Lưu cấu hình</button>
-          <button class="btn btn-secondary" id="btn-tg-test">Kiểm tra bot</button>
-          <button class="btn btn-secondary" id="btn-tg-webhook">Kết nối Webhook</button>
-          <button class="btn btn-primary" id="btn-tg-send">Gửi nhắc ngay</button>
+          <button class="btn btn-secondary tg-admin-only" id="btn-tg-save">Lưu cấu hình</button>
+          <button class="btn btn-secondary tg-admin-only" id="btn-tg-test">Kiểm tra bot</button>
+          <button class="btn btn-secondary tg-admin-only" id="btn-tg-webhook">Kết nối Webhook</button>
+          <button class="btn btn-secondary" id="btn-tg-save-public">Lưu giờ nhắc</button>
+          <button class="btn btn-primary" id="btn-tg-send">Gửi nhắc ngay (cả ban)</button>
           <button class="btn btn-ghost" id="btn-simulate-bot">Xem trước (không gửi)</button>
         </div>
         <p class="hint tg-hint" id="tg-deploy-hint"></p>
