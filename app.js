@@ -237,11 +237,18 @@ async function saveMember(e) {
   const name = ($('#member-name')?.value || '').trim();
   if (!name) return;
   try {
+    let saved = false;
     if (useServer) {
-      const res = await apiFetch('/api/members', { method: 'POST', body: JSON.stringify({ name }) });
-      MEMBERS = res.members || MEMBERS;
-      localStorage.setItem('ban-tt-sk-members', JSON.stringify(MEMBERS));
-    } else {
+      try {
+        const res = await apiFetch('/api/members', { method: 'POST', body: JSON.stringify({ name }) });
+        MEMBERS = res.members || MEMBERS;
+        localStorage.setItem('ban-tt-sk-members', JSON.stringify(MEMBERS));
+        saved = true;
+      } catch {
+        saved = false;
+      }
+    }
+    if (!saved) {
       if (!MEMBERS.some((m) => m.toLowerCase() === name.toLowerCase())) MEMBERS.push(name);
       localStorage.setItem('ban-tt-sk-members', JSON.stringify(MEMBERS));
     }
