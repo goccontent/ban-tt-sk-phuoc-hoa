@@ -25,6 +25,7 @@
         </select>
       </label>
       <button type="button" class="btn btn-secondary btn-sm" id="btn-send-member-reminder" title="Gửi nhắc Telegram">📱 Nhắc</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="btn-add-member" title="Thêm thành viên">+ Người</button>
     </div>
     <p class="motto">"Anh em là ánh sáng thế gian" (Mt 5,14)</p>
   </header>
@@ -48,16 +49,15 @@
 
       <div class="toolbar">
         <div class="toolbar-left">
-          <input type="search" id="task-search" class="search-input" placeholder="🔍 Tìm việc, người, sự kiện…" autocomplete="off">
           <select id="filter-ban">
             <option value="">Tất cả ban</option>
             <option value="Nội dung">Nội dung</option>
             <option value="Kỹ thuật">Kỹ thuật</option>
             <option value="Quản trị">Quản trị</option>
           </select>
-          <input type="search" id="filter-event-search" class="search-input search-input-sm" placeholder="Lọc sự kiện…" list="event-filter-list" autocomplete="off">
-          <datalist id="event-filter-list"></datalist>
-          <input type="hidden" id="filter-event" value="">
+          <select id="filter-event">
+            <option value="">Tất cả sự kiện</option>
+          </select>
         </div>
         <div class="toolbar-right">
           <input type="file" id="excel-file" accept=".xlsx,.xlsm" hidden>
@@ -258,6 +258,27 @@
       <footer class="modal-footer">
         <button type="button" class="btn btn-ghost" id="btn-cancel-event">Hủy</button>
         <button type="submit" class="btn btn-primary">Lưu sự kiện</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- MODAL: THÊM THÀNH VIÊN -->
+  <dialog id="member-modal" class="modal">
+    <form id="member-form" class="modal-content modal-content-sm">
+      <header class="modal-header">
+        <h2>Thêm thành viên</h2>
+        <button type="button" class="btn-close" id="btn-close-member-modal">&times;</button>
+      </header>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Tên thành viên</label>
+          <input type="text" id="member-name" required placeholder="VD: An, Bình, …">
+          <span class="label-hint">Sau khi thêm, tên sẽ có trong danh sách để giao việc và lọc việc.</span>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-ghost" id="btn-cancel-member">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu</button>
       </footer>
     </form>
   </dialog>

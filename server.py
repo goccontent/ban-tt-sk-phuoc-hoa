@@ -22,6 +22,7 @@ from flask_cors import CORS
 
 from backup_store import create_backup, latest_backup_path, list_backups, restore_backup
 from events_store import enrich_event, load_events, make_event_id, merge_events, save_events
+from members_store import add_member, load_members, save_members
 from import_excel import parse_excel, to_event_records
 from telegram_service import (
     BASE,
@@ -171,6 +172,39 @@ def create_event():
     except OSError:
         pass
     return jsonify({"ok": True, "event": ev, "events": existing})
+
+@app.route("/api/members", methods=["GET"])
+def get_members():
+    return jsonify(load_members())
+
+
+@app.route("/api/members", methods=["PUT"])
+def put_members():
+    data = request.get_json()
+    if not isinstance(data, list):
+        return jsonify({"ok": False, "error": "Expected array"}), 400
+    saved = save_members(data)
+    try:
+        create_backup(label="members")
+    except OSError:
+        pass
+    return jsonify({"ok": True, "count": len(saved), "members": saved})
+
+
+@app.route("/api/members", methods=["POST"])
+def post_member():
+    body = request.get_json() or {}
+    name = (body.get("name") or "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "Thiếu tên"}), 400
+    members = add_member(name)
+    if not members:
+        return jsonify({"ok": False, "error": "Tên không hợp lệ"}), 400
+    try:
+        create_backup(label="member-new")
+    except OSError:
+        pass
+    return jsonify({"ok": True, "members": members})
 
 
 @app.route("/api/events/import", methods=["POST"])

@@ -144,14 +144,6 @@ body {
 
 .view-btn.active { background: var(--primary); color: white; }
 
-.search-input {
-  min-width: 12rem;
-  flex: 1;
-  max-width: 280px;
-}
-
-.search-input-sm { min-width: 9rem; max-width: 200px; flex: 0 1 auto; }
-
 .inline-status { margin-bottom: 0.5rem; min-height: 0; }
 .inline-status .ok { color: #059669; font-size: 0.9rem; }
 .inline-status .err { color: #dc2626; font-size: 0.9rem; }

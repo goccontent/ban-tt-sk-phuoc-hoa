@@ -9,16 +9,12 @@ from pathlib import Path
 import requests
 
 from deadline_rules import SOON_HOURS, deadline_alert_level, format_deadline_vi, parse_deadline
+from members_store import load_members
 
 BASE = Path(__file__).parent
 CONFIG_FILE = BASE / "telegram_config.json"
 USERS_FILE = BASE / "telegram_users.json"
 TASKS_FILE = BASE / "tasks.json"
-
-MEMBER_NAMES = [
-    "Khánh Huyền", "Minh", "Trọng", "Kiều Duyên",
-    "Gioakim", "CTV A", "CTV B", "CTV C",
-]
 
 STATUS_LABELS = {
     "chua-lam": "Chưa làm",
@@ -310,8 +306,9 @@ def test_bot(token):
 
 
 def register_user(name, chat_id):
-    if name not in MEMBER_NAMES:
-        return False, f"Tên không hợp lệ. Chọn một trong: {', '.join(MEMBER_NAMES)}"
+    members = load_members()
+    if name not in members:
+        return False, f"Tên không hợp lệ. Chọn một trong: {', '.join(members)}"
     users = load_users()
     users[name] = str(chat_id)
     save_users(users)

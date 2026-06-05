@@ -18,6 +18,7 @@ function adminHeaders() {
 
 async function init() {
   await checkServer();
+  await loadMembers();
   await loadEvents();
   const loaded = await loadTasks();
   tasks = migrateTasksDeadlines(loaded);
@@ -52,10 +53,8 @@ function showServerBadge() {
 function populateSelects() {
   const eventOpts = EVENTS.map(e => `<option value="${e.id}">${formatEventLabel(e)}</option>`).join('');
   $('#task-event').innerHTML = eventOpts;
-  const datalist = $('#event-filter-list');
-  if (datalist) {
-    datalist.innerHTML = EVENTS.map(e => `<option value="${formatEventLabel(e)}">`).join('');
-  }
+  const filterEventOpts = EVENTS.map(e => `<option value="${e.id}">${formatEventLabel(e)}</option>`).join('');
+  $('#filter-event').innerHTML = '<option value="">Tất cả sự kiện</option>' + filterEventOpts;
 
   const memberOpts = MEMBERS.map(m => `<option value="${m}">${m}</option>`).join('');
   $('#task-owner').innerHTML = memberOpts;
@@ -65,19 +64,6 @@ function populateSelects() {
   const savedUser = localStorage.getItem(STORAGE_USER_KEY);
   if (savedUser) $('#my-name').value = savedUser;
   else if (cur) $('#my-name').value = cur;
-}
-
-function syncEventFilterFromSearch() {
-  const q = ($('#filter-event-search')?.value || '').trim().toLowerCase();
-  if (!q) {
-    $('#filter-event').value = '';
-    return;
-  }
-  const exact = EVENTS.find(e => formatEventLabel(e).toLowerCase() === q);
-  const partial = EVENTS.find(e =>
-    formatEventLabel(e).toLowerCase().includes(q) || e.name.toLowerCase().includes(q)
-  );
-  $('#filter-event').value = (exact || partial)?.id || '';
 }
 
 function setViewMode(mode) {
@@ -105,14 +91,6 @@ function getFilteredTasks() {
   const me = $('#my-name')?.value;
   if (viewMode === 'mine' && me) {
     list = list.filter((t) => t.owner === me || (t.helpers || []).includes(me));
-  }
-  const q = ($('#task-search')?.value || '').trim().toLowerCase();
-  if (q) {
-    list = list.filter((t) => {
-      const ev = getEvent(t.eventId);
-      const blob = [t.desc, t.owner, t.ban, t.phase, ev?.name || '', ...(t.helpers || [])].join(' ').toLowerCase();
-      return blob.includes(q);
-    });
   }
   const ban = $('#filter-ban')?.value;
   if (ban) list = list.filter((t) => t.ban === ban);
@@ -158,20 +136,20 @@ function bindEvents() {
     btn.addEventListener('click', () => setViewMode(btn.dataset.view));
   });
   $('#filter-ban').addEventListener('change', () => updateWorkView());
-  $('#task-search')?.addEventListener('input', () => updateWorkView());
-  $('#filter-event-search')?.addEventListener('input', () => {
-    syncEventFilterFromSearch();
-    updateWorkView();
-  });
+  $('#filter-event')?.addEventListener('change', () => updateWorkView());
   $('#task-event').addEventListener('change', () => { updatePhaseHint(); applyDeadlineFromPhase(); });
   $('#task-phase').addEventListener('change', () => { updatePhaseHint(); applyDeadlineFromPhase(); });
   $('#my-name').addEventListener('change', (e) => {
     localStorage.setItem(STORAGE_USER_KEY, e.target.value);
     updateMemberReminderButton();
-    if (viewMode === 'mine') setViewMode('mine');
-    else renderAll();
+    // Chọn tên thì auto chuyển sang "Việc của tôi" để hiện việc ngay
+    setViewMode('mine');
   });
   $('#btn-backup')?.addEventListener('click', downloadBackup);
+  $('#btn-add-member')?.addEventListener('click', openMemberModal);
+  $('#btn-close-member-modal')?.addEventListener('click', closeMemberModal);
+  $('#btn-cancel-member')?.addEventListener('click', closeMemberModal);
+  $('#member-form')?.addEventListener('submit', saveMember);
 
   $('#btn-send-member-reminder')?.addEventListener('click', sendMemberReminder);
   $('#btn-simulate-bot').addEventListener('click', () => previewReminders());
@@ -242,6 +220,39 @@ function updateWorkView() {
     $('#kanban-board').hidden = false;
     $('#my-tasks').hidden = true;
     renderKanban();
+  }
+}
+
+function openMemberModal() {
+  $('#member-form').reset();
+  $('#member-modal').showModal();
+}
+
+function closeMemberModal() {
+  $('#member-modal').close();
+}
+
+async function saveMember(e) {
+  e.preventDefault();
+  const name = ($('#member-name')?.value || '').trim();
+  if (!name) return;
+  try {
+    if (useServer) {
+      const res = await apiFetch('/api/members', { method: 'POST', body: JSON.stringify({ name }) });
+      MEMBERS = res.members || MEMBERS;
+      localStorage.setItem('ban-tt-sk-members', JSON.stringify(MEMBERS));
+    } else {
+      if (!MEMBERS.some((m) => m.toLowerCase() === name.toLowerCase())) MEMBERS.push(name);
+      localStorage.setItem('ban-tt-sk-members', JSON.stringify(MEMBERS));
+    }
+    populateSelects();
+    $('#my-name').value = name;
+    localStorage.setItem(STORAGE_USER_KEY, name);
+    updateMemberReminderButton();
+    closeMemberModal();
+    setViewMode('mine');
+  } catch (err) {
+    alert('Lỗi thêm người: ' + err.message);
   }
 }
 

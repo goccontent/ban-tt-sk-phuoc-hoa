@@ -1,7 +1,9 @@
-const MEMBERS = [
+const DEFAULT_MEMBERS = [
   'Khánh Huyền', 'Minh', 'Trọng', 'Kiều Duyên',
   'Gioakim', 'CTV A', 'CTV B', 'CTV C'
 ];
+
+let MEMBERS = [...DEFAULT_MEMBERS];
 
 const STATUS_LABELS = {
   'chua-lam': 'Chưa làm',
@@ -39,6 +41,7 @@ async function loadEvents() {
 
 const STORAGE_KEY = 'ban-tt-sk-tasks';
 const STORAGE_USER_KEY = 'ban-tt-sk-user';
+const STORAGE_MEMBERS_KEY = 'ban-tt-sk-members';
 const API_BASE = '';
 
 let useServer = false;
@@ -60,6 +63,34 @@ async function checkServer() {
   } catch {
     useServer = false;
     return false;
+  }
+}
+
+async function loadMembers() {
+  const saved = localStorage.getItem(STORAGE_MEMBERS_KEY);
+  if (saved) {
+    try {
+      const arr = JSON.parse(saved);
+      if (Array.isArray(arr) && arr.length) MEMBERS = arr;
+    } catch { /* ignore */ }
+  }
+
+  if (!useServer) return MEMBERS;
+  try {
+    const res = await apiFetch('/api/members');
+    if (Array.isArray(res) && res.length) {
+      MEMBERS = res;
+      localStorage.setItem(STORAGE_MEMBERS_KEY, JSON.stringify(MEMBERS));
+    }
+  } catch { /* ignore */ }
+  return MEMBERS;
+}
+
+async function persistMembers(members) {
+  MEMBERS = members;
+  localStorage.setItem(STORAGE_MEMBERS_KEY, JSON.stringify(MEMBERS));
+  if (useServer) {
+    await apiFetch('/api/members', { method: 'PUT', body: JSON.stringify(MEMBERS) });
   }
 }
 
